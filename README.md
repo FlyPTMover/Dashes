@@ -6,7 +6,7 @@ This repository contains examples of how to use the **TCP stream output** in **M
 
 These examples demonstrate how telemetry data from Mover can be displayed in a browser-based dashboard. The goal is to provide a starting point for building custom dashboards that can be used both locally and remotely on other devices.
 
-## Example 1 [Open Example1.html](https://flyptmover.github.io/Dashes/Example1.html)
+## Example 1 #[Open](https://flyptmover.github.io/Dashes/Example1.html)
 
 ![Cluster image](https://raw.githubusercontent.com/FlyPTMover/Dashes/main/Cluster1.png)
 
