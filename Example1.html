@@ -1,0 +1,1590 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mover Dashboard - 911 Style Cluster with PDK Gear - Paged</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <style>
+    :root{
+      --text:#f5f5f7;
+      --muted:#a8abb3;
+      --needle:#ff3b30;
+      --green:#65d66e;
+      --amber:#ffcc32;
+      --red:#ff453a;
+      --blue:#4fb3ff;
+      --cyan:#67e8f9;
+      --pdk-red:#ff5d57;
+      --pdk-glow:rgba(255,93,87,.28);
+      --card:rgba(255,255,255,.04);
+      --card-border:rgba(255,255,255,.08);
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Arial, sans-serif;
+      color:var(--text);
+      background: radial-gradient(circle at 50% 18%, #2b2c31 0%, #121317 22%, #09090b 60%, #050506 100%);
+      min-height:100vh;
+      min-height:100svh;
+      overscroll-behavior:none;
+      user-select:none;
+      touch-action:pan-y;
+      overflow:hidden;
+    }
+    body.app-maximized .toolbar{display:none}
+    body.app-maximized .wrap{max-width:none;padding:8px;height:100vh;height:100svh;min-height:0}
+    body.app-maximized .clusterShell{height:calc(100vh - 16px);height:calc(100svh - 16px);min-height:0}
+    .wrap{width:100%;max-width:none;margin:0 auto;padding:12px;height:100vh;height:100svh;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    .toolbar{
+      display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+      padding:14px 16px;border-radius:16px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow: 0 8px 30px rgba(0,0,0,.35);
+      margin-bottom:12px;
+    }
+    .toolbar label{color:var(--muted);font-size:14px}
+    .toolbar input{
+      min-width:280px;padding:10px 12px;border-radius:10px;
+      border:1px solid #34363d;background:#111319;color:var(--text);outline:none;
+    }
+    .toolbar button{
+      padding:10px 14px;border-radius:10px;border:1px solid #34363d;
+      background:#181a20;color:var(--text);cursor:pointer;
+    }
+    .toolbar button:hover{background:#20232b}
+    .status{margin-left:auto;font-weight:bold;letter-spacing:.2px}
+    .ok{color:var(--green)}
+    .bad{color:var(--red)}
+    .connectionMeta{
+      width:100%;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      color:var(--muted);
+      font-size:13px;
+      letter-spacing:1px;
+      text-transform:uppercase;
+      border-top:1px solid rgba(255,255,255,.06);
+      padding-top:10px;
+      margin-top:2px;
+    }
+    .connectionMeta strong{color:rgba(255,255,255,.88);font-weight:700}
+
+    .clusterShell{
+      position:relative;border-radius:28px;padding:12px; overflow:hidden;
+      display:flex;flex-direction:column;flex:1 1 auto;min-height:0;
+      background:
+        radial-gradient(circle at 50% 15%, rgba(255,255,255,.06), rgba(255,255,255,0) 30%),
+        linear-gradient(180deg, #181a1f, #0d0e11 55%, #070709);
+      border:1px solid rgba(255,255,255,.07);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -18px 30px rgba(0,0,0,.35), 0 30px 80px rgba(0,0,0,.5);
+      height:100%;
+    }
+    .title{
+      text-align:center;color:var(--muted);font-size:13px;letter-spacing:2.2px;
+      margin-bottom:16px;text-transform:uppercase;
+    }
+    .pageViewport{position:relative;overflow:hidden;min-height:0;flex:1 1 auto;height:100%;width:100%}
+    .pageTrack{display:flex;width:100%;height:100%;transition:transform .28s ease}
+    .page{flex:0 0 100%;width:100%;max-width:100%;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;overflow:hidden;min-height:0;height:100%;padding:0}
+
+    .pageScaleWrapper{
+      position:relative;
+      width:100%;
+      height:100%;
+      min-height:0;
+      overflow:hidden;
+      padding:0;
+    }
+    .pageScaleContent{
+      position:absolute;
+      left:50%;
+      top:50%;
+      display:block;
+      transform-origin:center center;
+      will-change: transform;
+      margin:0;
+    }
+    .pageMeasureBox{
+      position:absolute;
+      left:-99999px;
+      top:0;
+      visibility:hidden;
+      pointer-events:none;
+      overflow:visible;
+      z-index:-1;
+    }
+
+    .pageMeta{display:none !important;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;letter-spacing:1.3px;text-transform:uppercase;padding:0 10px}
+    .pageName{font-weight:bold;color:rgba(255,255,255,.8)}
+    .pageDots{display:none !important;gap:8px;align-items:center}
+    .pageDot{width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+    .pageDot.active{background:var(--red);box-shadow:0 0 14px rgba(255,69,58,.45)}
+
+    .cluster{display:grid;grid-template-columns: 210px 210px 440px 210px 210px;justify-content:center;align-items:center;gap:0;overflow:hidden;padding:0;width:100%;height:100%;flex-wrap:nowrap}
+    .gauge{
+      position:relative;width:210px;height:210px;margin:auto;border-radius:50%;
+      background:
+        radial-gradient(circle at 50% 42%, #1c1d22 0%, #111216 45%, #090a0d 72%, #020203 100%);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,.04),
+        inset 0 0 28px rgba(255,255,255,.03),
+        inset 0 -30px 50px rgba(0,0,0,.5),
+        0 8px 24px rgba(0,0,0,.45);
+    }
+    .gauge.large{width:440px;height:440px;z-index:2}
+    .gauge svg{width:100%;height:100%;display:block;overflow:visible;filter: drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+    .foot{margin-top:4px}
+    .legend{color:var(--muted);font-size:14px;line-height:1.5}
+    .rufPageWrap{display:flex;justify-content:center;align-items:center;padding:0;flex-wrap:nowrap;overflow:hidden;width:100%;height:100%}
+    .rufCluster{position:relative;width:1180px;min-width:1180px;height:460px;flex:0 0 auto}
+    .rufGauge{position:absolute;border-radius:50%;
+      background:
+        radial-gradient(circle at 50% 42%, #19171b 0%, #110f13 48%, #0a090c 76%, #030304 100%);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,.03),
+        inset 0 0 28px rgba(255,255,255,.02),
+        inset 0 -30px 50px rgba(0,0,0,.55),
+        0 10px 26px rgba(0,0,0,.5);}
+    .rufGauge svg{width:100%;height:100%;display:block;overflow:visible;filter: drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+    .rufGauge.small{width:230px;height:230px;top:164px}
+    .rufGauge.med{width:350px;height:350px;top:62px}
+    .rufGauge.center{width:420px;height:420px;left:50%;top:18px;transform:translateX(-50%);z-index:2}
+    .rufGauge.left1{left:60px}
+    .rufGauge.left2{left:160px;z-index:1}
+    .rufGauge.right2{right:160px;z-index:1}
+    .rufGauge.right1{right:60px}
+    .rufLabel{color:var(--muted);font-size:14px;line-height:1.5;text-align:center}
+
+    .zxWrap{display:flex;justify-content:center;align-items:center;padding:8px 0 18px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden}
+    .zxCluster{
+      position:relative;width:1280px;min-width:1280px;height:560px;border-radius:22px;overflow:hidden;flex:0 0 auto;
+      background:
+        radial-gradient(circle at 50% 8%, rgba(50,120,255,.12), rgba(0,0,0,0) 28%),
+        linear-gradient(180deg, #05070b 0%, #020306 100%);
+      box-shadow: inset 0 0 0 1px rgba(100,160,255,.08), 0 18px 44px rgba(0,0,0,.44);
+    }
+    .zxGrid{-webkit-transform:perspective(900px) rotateX(62deg);transform:perspective(900px) rotateX(62deg);-webkit-transform-origin:center 74%;transform-origin:center 74%;
+      position:absolute;left:56px;right:56px;top:96px;bottom:46px;
+      background-image:
+        linear-gradient(rgba(64,126,255,.22) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(64,126,255,.22) 1px, transparent 1px);
+      background-size:32px 32px, 32px 32px;
+      border-top:2px solid rgba(64,126,255,.55);
+      pointer-events:none;
+      filter: drop-shadow(0 0 10px rgba(0,90,255,.2));
+    }
+    .zxHud{position:absolute;inset:0;color:#7ef7b2;font-family:'Arial Narrow', Arial, sans-serif}
+    .zxLampRow{position:absolute;left:50%;top:26px;transform:translateX(-50%);display:flex;gap:10px}
+    .zxLamp{min-width:66px;height:26px;border-radius:3px;border:1px solid rgba(255,255,255,.06);background:#1b0d0d;display:flex;align-items:center;justify-content:center;padding:0 8px;font-size:12px;font-weight:bold;letter-spacing:.6px}
+    .zxLamp.red.active{background:#ff2a1d;color:#1a0000;box-shadow:0 0 12px rgba(255,42,29,.35)}
+    .zxLamp.amber.active{background:#ffe34a;color:#2c2400;box-shadow:0 0 12px rgba(255,227,74,.35)}
+    .zxLamp.blue.active{background:#2b69ff;color:#d7e4ff;box-shadow:0 0 12px rgba(43,105,255,.35)}
+    .zxLamp:not(.active){opacity:.18}
+    .zxArrow{position:absolute;top:126px;font-size:64px;color:#65ecff;opacity:.86}
+    .zxArrow.left{left:146px}.zxArrow.right{right:146px}
+    .zxSpeedBox{
+      position:absolute;left:50%;top:112px;transform:translateX(-50%);
+      width:330px;height:104px;border:3px solid rgba(180,240,255,.8);
+      background:rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;gap:12px;
+      box-shadow:0 0 14px rgba(120,220,255,.15);
+    }
+    .zxSpeedValue{font-size:86px;line-height:1;font-style:italic;font-weight:700;letter-spacing:1px;color:#63f2a1;text-shadow:0 0 8px rgba(99,242,161,.18)}
+    .zxSpeedUnit{font-size:28px;font-weight:700;color:#63f2a1}
+    .zxSpeedLabel{position:absolute;left:290px;top:184px;font-size:26px;font-style:italic;font-weight:700;color:#78eaff}
+    .zxFuelLabel{position:absolute;left:88px;top:170px;font-size:22px;font-style:italic;font-weight:700;color:#78eaff}
+    .zxFuelIcon{position:absolute;left:144px;top:194px;width:22px;height:22px;opacity:.9}
+    .zxFuelGauge{
+      position:absolute;left:116px;bottom:146px;width:78px;height:156px;border:3px solid rgba(99,242,161,.75);
+      transform:skewX(-9deg);background:rgba(0,0,0,.12)
+    }
+    .zxFuelBars{position:absolute;left:8px;right:22px;top:8px;bottom:8px;display:grid;grid-template-rows:repeat(10,1fr);gap:4px}
+    .zxFuelBar{background:#63f2a1;opacity:.14}
+    .zxFuelMarks{position:absolute;right:4px;top:6px;bottom:6px;display:flex;flex-direction:column;justify-content:space-between;font-size:16px;font-style:italic;font-weight:700;color:#63f2a1}
+    .zxFuelBig{position:absolute;left:52px;bottom:182px;font-size:64px;font-style:italic;font-weight:700;color:#7ef7b2}
+    .zxRpmValueBox{position:absolute;left:404px;top:258px;width:90px;height:42px;background:rgba(0,0,0,.48);display:flex;align-items:center;justify-content:center}
+    .zxRpmValue{font-size:38px;font-style:italic;font-weight:700;color:#7ef7b2;line-height:1}
+    .zxRpmUnit{position:absolute;left:506px;top:266px;font-size:24px;font-style:italic;font-weight:700;color:#78eaff}
+    .zxTachLabel{position:absolute;left:256px;bottom:124px;font-size:28px;font-style:italic;font-weight:700;color:#78eaff}
+    .zxTachArea{position:absolute;left:340px;right:312px;bottom:108px;height:206px}
+    .zxTachFrame{position:absolute;inset:0;border:3px solid rgba(180,240,255,.82);background:rgba(0,0,0,.12)}
+    .zxRedCurve{position:absolute;left:0;right:0;top:-24px;height:108px;pointer-events:none}
+    .zxBars{position:absolute;left:16px;right:16px;bottom:18px;top:16px;display:flex;align-items:flex-end;gap:6px}
+    .zxBar{flex:1;background:#63f2a1;opacity:.92;box-shadow:0 0 8px rgba(99,242,161,.14)}
+    .zxTicks{position:absolute;left:0;right:0;bottom:-42px;display:flex;justify-content:space-between;font-size:22px;font-style:italic;font-weight:700;color:#f7f7fb}
+    .zxTicks .red{color:#ff392f}
+    .zxRightGauges{position:absolute;right:92px;bottom:140px;display:flex;gap:18px}
+    .zxGaugeCol{position:relative;width:72px;height:148px;border:3px solid rgba(99,242,161,.75);transform:skewX(-8deg);background:rgba(0,0,0,.12)}
+    .zxGaugeBars{position:absolute;left:8px;right:22px;top:8px;bottom:8px;display:grid;grid-template-rows:repeat(8,1fr);gap:4px}
+    .zxGaugeBar{background:#63f2a1;opacity:.14}
+    .zxGaugeNums{position:absolute;right:4px;top:4px;bottom:4px;display:flex;flex-direction:column;justify-content:space-between;font-size:16px;font-style:italic;font-weight:700;color:#63f2a1}
+    .zxGaugeUnit{position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);font-size:18px;font-style:italic;font-weight:700;color:#78eaff;white-space:nowrap}
+    .zxIcon{position:absolute;width:22px;height:22px;opacity:.9}
+    .zxCoolIcon{right:270px;top:186px}
+    .zxOilIcon{right:212px;top:186px}
+    .zxBattIcon{right:154px;top:186px}
+    .zxGears{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:16px}
+    .zxGear{font-size:54px;font-style:italic;font-weight:700;color:#b4bfd1;opacity:.4}
+    .zxGear.active{color:#ff2d2d;opacity:1;text-shadow:0 0 10px rgba(255,45,45,.26)}
+
+
+    .tyreHudWrap{display:flex;justify-content:center;align-items:center;padding:10px 0 18px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden}
+    .tyreHud{
+      position:relative;width:760px;min-width:760px;height:420px;border-radius:26px;
+      background:
+        linear-gradient(180deg, rgba(120,150,190,.10), rgba(60,80,110,.10)),
+        radial-gradient(circle at 50% 15%, rgba(255,255,255,.05), rgba(255,255,255,0) 35%),
+        linear-gradient(180deg, rgba(18,22,30,.92), rgba(8,10,14,.96));
+      border:1px solid rgba(170,200,255,.16);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.03), 0 18px 44px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .tyreHud::before{
+      content:'';position:absolute;inset:14px;border-radius:18px;
+      border:1px solid rgba(160,190,255,.16);
+      pointer-events:none;
+    }
+    .tyreHudGrid{
+      position:absolute;inset:0;display:grid;grid-template-columns:1fr 160px 1fr;grid-template-rows:1fr 1fr;
+      align-items:center;justify-items:center;padding:28px 34px;
+    }
+    .tyreBlock{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:240px}
+    .tyreMeta{display:flex;flex-direction:column;gap:4px;min-width:92px;text-align:right}
+    .tyreMeta.right{text-align:left;order:2}
+    .tyreMeta .temp{font-size:34px;font-weight:bold;line-height:1}
+    .tyreMeta .pressure{font-size:26px;font-weight:bold;line-height:1}
+    .tyreMeta .compound{font-size:20px;color:var(--muted);line-height:1.1}
+    .tyreVisual{display:flex;align-items:center;gap:8px}
+    .treadCol{display:grid;grid-template-rows:repeat(3,1fr);gap:6px}
+    .treadBar{width:24px;height:28px;border-radius:5px;background:#9bb7ff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+    .treadBar.narrow{width:10px}
+    .brakePair{display:flex;gap:6px;align-items:center;justify-content:center}
+    .brakeBar{width:12px;height:54px;border-radius:3px;background:#8dd9ad;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+    .brakeStatus{
+      position:absolute;left:50%;bottom:28px;transform:translateX(-50%);
+      display:flex;flex-direction:column;align-items:center;gap:6px
+    }
+    .brakeStatus .label{font-size:12px;letter-spacing:1.6px;color:var(--muted);text-transform:uppercase}
+    .brakeStatus .value{font-size:22px;font-weight:bold}
+    .tyreHudTitle{
+      position:absolute;left:50%;top:12px;transform:translateX(-50%);
+      font-size:14px;letter-spacing:2px;color:rgba(255,255,255,.55);text-transform:uppercase
+    }
+    @media (max-width: 980px){
+    }
+
+    @media (max-width: 980px){
+    }
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);margin-right:8px;margin-bottom:8px}
+
+    .infoGrid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;padding:0;width:100%;min-width:1180px}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)); border:1px solid var(--card-border); border-radius:22px; box-shadow:0 14px 38px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04); padding:16px}
+    .panel h3{margin:0 0 12px;color:rgba(255,255,255,.9);font-size:15px;letter-spacing:1.4px;text-transform:uppercase}
+    .pageScaleContent > .title{display:none !important}
+    .pageScaleContent > .foot{margin-top:0}
+    .pageScaleContent > .infoGrid,
+    .pageScaleContent > .cluster,
+    .pageScaleContent > .rufPageWrap{flex:1 1 auto}
+    .span-3{grid-column:span 3}.span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}.span-7{grid-column:span 7}.span-8{grid-column:span 8}.span-12{grid-column:span 12}
+
+    .metricGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .metric{padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+    .metricLabel{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1.1px;margin-bottom:6px}
+    .metricValue{font-size:30px;font-weight:bold;line-height:1.05}
+    .metricSub{font-size:12px;color:var(--muted);margin-top:6px}
+
+    .warningGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .warningLight{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .warningLight .lamp{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+    .warningLight.active .lamp.red{background:var(--red);box-shadow:0 0 16px rgba(255,69,58,.7)}
+    .warningLight.active .lamp.amber{background:var(--amber);box-shadow:0 0 16px rgba(255,204,50,.65)}
+    .warningLight.active .lamp.green{background:var(--green);box-shadow:0 0 16px rgba(101,214,110,.6)}
+    .warningLight.active .lamp.blue{background:var(--blue);box-shadow:0 0 16px rgba(79,179,255,.65)}
+    .warningText{font-size:14px;letter-spacing:.4px}
+
+    .progressWrap{display:flex;flex-direction:column;gap:10px}
+    .trackBar{height:18px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;position:relative;border:1px solid rgba(255,255,255,.05)}
+    .trackFill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg, var(--blue), var(--cyan), var(--green));box-shadow:0 0 24px rgba(79,179,255,.28)}
+    .trackMeta{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+
+    .pedalStack{display:grid;gap:12px}
+    .barMetric{display:grid;grid-template-columns:110px 1fr 72px;align-items:center;gap:12px}
+    .barMetric .name{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1.1px}
+    .bar{height:16px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;border:1px solid rgba(255,255,255,.05)}
+    .barFill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg, rgba(255,255,255,.18), var(--red))}
+    .barFill.green{background:linear-gradient(90deg, rgba(255,255,255,.18), var(--green))}
+    .barFill.blue{background:linear-gradient(90deg, rgba(255,255,255,.18), var(--blue))}
+    .barFill.amber{background:linear-gradient(90deg, rgba(255,255,255,.18), var(--amber))}
+    .barValue{text-align:right;font-weight:bold}
+
+    .gMeter{position:relative;aspect-ratio:1/1;max-width:380px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 48%, rgba(0,0,0,.2) 72%, rgba(0,0,0,.5) 100%);border:1px solid rgba(255,255,255,.07);overflow:hidden}
+    .gRing,.gCross{position:absolute;inset:0;pointer-events:none;z-index:3}
+    .gCross::before,.gCross::after{content:'';position:absolute;background:rgba(255,255,255,.12)}
+    .gCross::before{left:50%;top:8%;bottom:8%;width:1px;transform:translateX(-50%)}
+    .gCross::after{top:50%;left:8%;right:8%;height:1px;transform:translateY(-50%)}
+    .gDot{position:absolute;left:50%;top:50%;width:22px;height:22px;border-radius:50%;background:#ff3b30;opacity:.88;transform:translate(-50%,-50%);box-shadow:0 0 18px rgba(255,69,58,.42);z-index:8}
+    .gLabels{position:absolute;inset:0;font-size:12px;color:var(--muted);z-index:3}
+    .gLabels span{position:absolute}
+    .gLabels .top{left:50%;top:8px;transform:translateX(-50%)}
+    .gLabels .bottom{left:50%;bottom:8px;transform:translateX(-50%)}
+    .gLabels .left{left:10px;top:50%;transform:translateY(-50%)}
+    .gLabels .right{right:10px;top:50%;transform:translateY(-50%)}
+    .gCenterWrap{position:relative;max-width:380px;margin:0 auto;padding-bottom:34px}.gCenterText{position:absolute;right:0;bottom:0;transform:none;text-align:right;pointer-events:none;z-index:6}
+    .gCenterText .big{font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text)}.gCenterText .small{font-size:13px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase}
+
+    .tireGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .tireCard{padding:14px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .tireHead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:10px}
+    .tireName{font-weight:bold;letter-spacing:1.1px;text-transform:uppercase}
+    .tempStrip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+    .tempCell{padding:10px;border-radius:12px;background:rgba(255,255,255,.035);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+    .tempCell .small{font-size:11px;color:var(--muted);text-transform:uppercase}.tempCell .value{font-size:18px;font-weight:bold;margin-top:4px}
+    .smallStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.smallStat{padding:8px;border-radius:12px;background:rgba(255,255,255,.03);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+    .smallStat .k{font-size:11px;color:var(--muted);text-transform:uppercase}.smallStat .v{font-weight:bold;margin-top:4px}
+
+    .navZone{position:absolute;top:0;bottom:0;width:8%;z-index:12;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0);font-size:44px;opacity:0;transition:background .25s,color .25s,opacity .25s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+    .navZone:hover{background:rgba(255,255,255,.03);color:rgba(255,255,255,.34);opacity:1}
+    .navZone.left{left:0}.navZone.right{right:0}
+
+    @media (max-width: 1280px){
+      .cluster{grid-template-columns: 180px 180px 360px 180px 180px}
+      .gauge{width:180px;height:180px}
+      .gauge.large{width:360px;height:360px}
+    }
+    @media (max-width: 980px){
+      .navZone{width:10%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="toolbar">
+      <label for="url">Stream URL</label>
+      <input id="url" value="http://localhost:8080" />
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn">Disconnect</button>
+      <div id="status" class="status bad">Disconnected</div>
+      <div class="connectionMeta">
+        <div>Current page: <strong id="toolbarPageName">Main cluster</strong></div>
+        <div>Page <strong id="toolbarPageNumber">1 / 7</strong></div>
+      </div>
+    </div>
+
+    <div class="clusterShell" id="clusterShell">
+      <div class="navZone left" id="prevZone">‹</div>
+      <div class="navZone right" id="nextZone">›</div>
+            <div class="pageViewport" id="pageViewport">
+        <div class="pageTrack" id="pageTrack">
+<section class="page">
+            
+            <div class="pageMeta">
+              <div class="pageName">Page 1 · Main cluster</div>
+              <div class="pageDots"></div>
+            </div>
+            <div class="rufPageWrap">
+              <div class="rufCluster">
+                <div class="rufGauge small left1" id="r1"></div>
+                <div class="rufGauge med left2" id="r2"></div>
+                <div class="rufGauge center" id="r3"></div>
+                <div class="rufGauge med right2" id="r4"></div>
+                <div class="rufGauge small right1" id="r5"></div>
+              </div>
+            </div>
+
+          </section>
+
+<section class="page">
+            
+            <div class="pageMeta">
+              <div class="pageName">Page 2 · Secondary cluster</div>
+              <div class="pageDots" id="pageDots"></div>
+            </div>
+            <div class="cluster">
+              <div class="gauge" id="g1"></div>
+              <div class="gauge" id="g2"></div>
+              <div class="gauge large" id="g3"></div>
+              <div class="gauge" id="g4"></div>
+              <div class="gauge" id="g5"></div>
+            </div>
+          </section>
+
+<section class="page">
+            <div class="title">Racing timing, progress and status lamps</div>
+            <div class="pageMeta">
+              <div class="pageName">Page 2 · Laps and warnings</div>
+              <div class="pageDots"></div>
+            </div>
+            <div class="infoGrid">
+              <div class="panel span-5">
+                <h3>Lap timing</h3>
+                <div class="metricGrid">
+                  <div class="metric"><div class="metricLabel">Current lap</div><div class="metricValue" id="currentLap">—</div><div class="metricSub">lap number</div></div>
+                  <div class="metric"><div class="metricLabel">Sector</div><div class="metricValue" id="currentSector">—</div><div class="metricSub">current sector</div></div>
+                  <div class="metric"><div class="metricLabel">Current lap time</div><div class="metricValue" id="currentLapTime">--:--.---</div><div class="metricSub">live timer</div></div>
+                  <div class="metric"><div class="metricLabel">Sector time</div><div class="metricValue" id="currentSectorTime">--:--.---</div><div class="metricSub">current split</div></div>
+                  <div class="metric"><div class="metricLabel">Best lap</div><div class="metricValue" id="bestLapTime">--:--.---</div><div class="metricSub">best of session</div></div>
+                  <div class="metric"><div class="metricLabel">Last lap</div><div class="metricValue" id="lastLapTime">--:--.---</div><div class="metricSub">previous lap</div></div>
+                </div>
+              </div>
+              <div class="panel span-7">
+                <h3>Track progress</h3>
+                <div class="progressWrap">
+                  <div class="trackBar"><div class="trackFill" id="trackProgressFill"></div></div>
+                  <div class="trackMeta"><span id="trackProgressText">0%</span><span id="trackDistanceText">0 / 0 m</span></div>
+                  <div class="metricGrid">
+                    <div class="metric"><div class="metricLabel">Track distance</div><div class="metricValue" id="currentTrackDistance">0 m</div><div class="metricSub">current position</div></div>
+                    <div class="metric"><div class="metricLabel">Track length</div><div class="metricValue" id="trackLength">0 m</div><div class="metricSub">full circuit</div></div>
+                    <div class="metric"><div class="metricLabel">Laps in race</div><div class="metricValue" id="lapsInRace">—</div><div class="metricSub">race total</div></div>
+                    <div class="metric"><div class="metricLabel">Time of day</div><div class="metricValue" id="timeOfDay">—</div><div class="metricSub">sim time</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel span-12">
+                <h3>Warning lights</h3>
+                <div class="warningGrid">
+                  <div class="warningLight" id="warnTC"><div class="lamp amber"></div><div class="warningText">Traction control active</div></div>
+                  <div class="warningLight" id="warnABS"><div class="lamp amber"></div><div class="warningText">ABS active</div></div>
+                  <div class="warningLight" id="warnDRS"><div class="lamp green"></div><div class="warningText">DRS open / allowed</div></div>
+                  <div class="warningLight" id="warnPit"><div class="lamp blue"></div><div class="warningText">Pit limiter</div></div>
+                  <div class="warningLight" id="warnLights"><div class="lamp blue"></div><div class="warningText">Lights on</div></div>
+                  <div class="warningLight" id="warnHandbrake"><div class="lamp red"></div><div class="warningText">Handbrake</div></div>
+                  <div class="warningLight" id="warnStall"><div class="lamp red"></div><div class="warningText">Engine stall</div></div>
+                  <div class="warningLight" id="warnKers"><div class="lamp green"></div><div class="warningText">KERS / ERS deployed</div></div>
+                  <div class="warningLight" id="warnBrake"><div class="lamp red"></div><div class="warningText">Brake pressure high</div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+<section class="page">
+            <div class="title">Tyres, brakes and environment</div>
+            <div class="pageMeta">
+              <div class="pageName">Page 4 · Tyres and temps</div>
+              <div class="pageDots"></div>
+            </div>
+            <div class="infoGrid">
+              <div class="panel span-8">
+                <h3>Tyre overview</h3>
+                <div class="tireGrid" id="tireGrid"></div>
+              </div>
+              <div class="panel span-4">
+                <h3>Environment and fluids</h3>
+                <div class="metricGrid">
+                  <div class="metric"><div class="metricLabel">Air temp</div><div class="metricValue" id="airTemperature">0 °C</div><div class="metricSub">ambient</div></div>
+                  <div class="metric"><div class="metricLabel">Track temp</div><div class="metricValue" id="trackTemperature">0 °C</div><div class="metricSub">surface</div></div>
+                  <div class="metric"><div class="metricLabel">Oil pressure</div><div class="metricValue" id="oilPressure">0</div><div class="metricSub">engine oil</div></div>
+                  <div class="metric"><div class="metricLabel">Fuel pressure</div><div class="metricValue" id="fuelPressure">0</div><div class="metricSub">fuel system</div></div>
+                  <div class="metric"><div class="metricLabel">Brake bias</div><div class="metricValue" id="frontRearBrake">0 / 0</div><div class="metricSub">front / rear</div></div>
+                  <div class="metric"><div class="metricLabel">Wind</div><div class="metricValue" id="windSummary">0</div><div class="metricSub">lateral / longitudinal</div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+<section class="page">
+            <div class="title">Driver inputs, chassis motion and G force</div>
+            <div class="pageMeta">
+              <div class="pageName">Page 3 · Dynamics</div>
+              <div class="pageDots"></div>
+            </div>
+            <div class="infoGrid">
+              <div class="panel span-5">
+                <h3>G meter</h3>
+                <div class="gCenterWrap">
+                  <div class="gCenterWrap"><div class="gMeter" id="gMeter">
+                    <div class="gRing"></div>
+                    <div class="gCross"></div>
+                    <div class="gLabels"><span class="top">+Y accel</span><span class="bottom">−Y braking</span><span class="left">−X left</span><span class="right">+X right</span></div>
+                    <svg xmlns:xlink="http://www.w3.org/1999/xlink" id="gTrailSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:4" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+                    <svg xmlns:xlink="http://www.w3.org/1999/xlink" id="gGridSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:1" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+                    <div class="gDot" id="gDot"></div>
+                    <div id="gTrail" style="display:none"></div>
+                    <div id="gPeakX" style="position:absolute;width:6px;height:6px;border-radius:50%;background:#4fb3ff;"></div>
+                    <div id="gPeakY" style="position:absolute;width:6px;height:6px;border-radius:50%;background:#ffcc32;"></div>
+                  </div><div class="gCenterText"><div class="big" id="gTotal">0.00 g</div></div></div>
+                </div>
+              </div>
+              <div class="panel span-7">
+                <h3>Inputs</h3>
+                <div class="pedalStack" style="display:flex;gap:20px;justify-content:space-around">
+                  <div style="text-align:center">
+                    <div class="name">Throttle</div>
+                    <div style="height:140px;width:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);border-radius:12px;overflow:hidden;margin:6px auto;position:relative">
+                      <div class="barFill green" id="barThrottle" style="width:100%;height:0%;position:absolute;bottom:0"></div>
+                    </div>
+                    <div id="valThrottle">0%</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div class="name">Brake</div>
+                    <div style="height:140px;width:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);border-radius:12px;overflow:hidden;margin:6px auto;position:relative">
+                      <div class="barFill red" id="barBrake" style="width:100%;height:0%;position:absolute;bottom:0"></div>
+                    </div>
+                    <div id="valBrake">0%</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div class="name">Clutch</div>
+                    <div style="height:140px;width:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);border-radius:12px;overflow:hidden;margin:6px auto;position:relative">
+                      <div class="barFill blue" id="barClutch" style="width:100%;height:0%;position:absolute;bottom:0"></div>
+                    </div>
+                    <div id="valClutch">0%</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div class="name">Handbrake</div>
+                    <div style="height:140px;width:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);border-radius:12px;overflow:hidden;margin:6px auto;position:relative">
+                      <div class="barFill amber" id="barHandbrake" style="width:100%;height:0%;position:absolute;bottom:0"></div>
+                    </div>
+                    <div id="valHandbrake">0%</div>
+                  </div>
+                
+                </div>
+
+                <!-- steering moved here -->
+                <div style="margin-top:16px">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <div style="min-width:110px;color:#a8abb3;font-size:13px;letter-spacing:1.1px;text-transform:uppercase">Steering</div>
+                    <div style="flex:1;height:16px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);position:relative;overflow:hidden">
+                      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35);transform:translateX(-50%);"></div>
+                      <div id="barSteeringLeft" style="position:absolute;right:50%;top:0;height:100%;width:0%;background:linear-gradient(90deg,#ff3b30,#ffcc32);"></div>
+                      <div id="barSteeringRight" style="position:absolute;left:50%;top:0;height:100%;width:0%;background:linear-gradient(90deg,#ffcc32,#ff3b30);"></div>
+                    </div>
+                    <div id="valSteeringPct" style="min-width:60px;text-align:right;font-weight:bold">0%</div>
+                  </div>
+                </div>
+
+                <div class="metricGrid" style="margin-top:14px">
+                  <div class="metric span-12" style="text-align:center">
+                    <div class="metricLabel">Current Gear</div>
+                    <div class="metricValue" id="gearDisplay" style="font-size:64px">N</div>
+                    <div class="metricSub">transmission</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let es = null;
+    const statusEl = document.getElementById('status');
+    const urlEl = document.getElementById('url');
+    const pageTrack = document.getElementById('pageTrack');
+    const pageViewport = document.getElementById('pageViewport');
+    window.requestAnimationFrame = window.requestAnimationFrame || function(cb){ return setTimeout(cb, 16); };
+    
+    function wrapPagesForScaling(){
+      document.querySelectorAll('.page').forEach(page=>{
+        if(page.querySelector('.pageScaleWrapper')) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'pageScaleWrapper';
+        const content = document.createElement('div');
+        content.className = 'pageScaleContent';
+
+        while(page.firstChild){
+          content.appendChild(page.firstChild);
+        }
+        wrapper.appendChild(content);
+        page.appendChild(wrapper);
+      });
+    }
+
+    let scaleQueued = false;
+    let pageMeasureBox = null;
+
+    function getPageMeasureBox(){
+      if (pageMeasureBox && document.body.contains(pageMeasureBox)) return pageMeasureBox;
+      pageMeasureBox = document.createElement('div');
+      pageMeasureBox.className = 'pageMeasureBox';
+      document.body.appendChild(pageMeasureBox);
+      return pageMeasureBox;
+    }
+
+    function measureNaturalSize(content){
+      const measureBox = getPageMeasureBox();
+      measureBox.innerHTML = '';
+      const clone = content.cloneNode(true);
+      clone.style.position = 'static';
+      clone.style.left = 'auto';
+      clone.style.top = 'auto';
+      clone.style.transform = 'none';
+      clone.style.transformOrigin = 'center center';
+      clone.style.width = 'max-content';
+      clone.style.height = 'auto';
+      clone.style.maxWidth = 'none';
+      clone.style.maxHeight = 'none';
+      clone.style.minWidth = '0';
+      clone.style.minHeight = '0';
+      measureBox.appendChild(clone);
+      const rect = clone.getBoundingClientRect();
+      const width = Math.ceil(rect.width || clone.scrollWidth || clone.offsetWidth || 0);
+      const height = Math.ceil(rect.height || clone.scrollHeight || clone.offsetHeight || 0);
+      measureBox.innerHTML = '';
+      return { width, height };
+    }
+    function getNaturalPageSize(page, content){
+      if (page._naturalPageSize && page._naturalPageSize.width && page._naturalPageSize.height) {
+        return page._naturalPageSize;
+      }
+      const measured = measureNaturalSize(content);
+      page._naturalPageSize = measured;
+      return measured;
+    }
+    function invalidateNaturalPageSizes(){
+      document.querySelectorAll('.page').forEach(page => { delete page._naturalPageSize; });
+    }
+
+    function scalePages(){
+      const viewportRect = pageViewport.getBoundingClientRect();
+      document.querySelectorAll('.page').forEach(page=>{
+        const content = page.querySelector('.pageScaleContent');
+        const wrapper = page.querySelector('.pageScaleWrapper');
+        if(!content || !wrapper) return;
+
+        const pageRect = page.getBoundingClientRect();
+        const availableW = Math.max(0, Math.floor(pageRect.width || page.clientWidth || viewportRect.width || 0));
+        const availableH = Math.max(0, Math.floor(pageRect.height || page.clientHeight || viewportRect.height || 0));
+        if(!availableW || !availableH) return;
+
+        wrapper.style.height = '';
+        page.style.height = '100%';
+        page.style.minHeight = '0';
+
+        content.style.width = '';
+        content.style.height = '';
+        content.style.maxWidth = 'none';
+        content.style.maxHeight = 'none';
+        content.style.minWidth = '0';
+        content.style.minHeight = '0';
+        content.style.transform = 'translate(-50%, -50%) scale(1)';
+
+        const natural = getNaturalPageSize(page, content);
+        const contentW = natural.width;
+        const contentH = natural.height;
+        if(!contentW || !contentH) return;
+
+        const scale = Math.max(0.01, Math.min(availableW / contentW, availableH / contentH));
+        content.style.width = contentW + 'px';
+        content.style.height = contentH + 'px';
+        content.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      });
+    }
+    function requestScale(){
+      if (scaleQueued) return;
+      scaleQueued = true;
+      requestAnimationFrame(() => {
+        scaleQueued = false;
+        scalePages();
+      });
+    }
+
+const pages = Array.from(document.querySelectorAll('.page'));
+    const pageNames = ['Main cluster','Secondary cluster','Laps and warnings','Tyres and temps','Dynamics'];
+    let pageIndex = 0;
+    let lastTapTs = 0;
+    let touchStartX = null;
+    let touchStartY = null;
+    const latestData = {};
+    let wakeLock = null;
+    async function requestWakeLock(){
+      try{
+        if(!('wakeLock' in navigator) || wakeLock) return;
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }catch(err){
+        console.warn('Wake lock failed:', err);
+      }
+    }
+    async function releaseWakeLock(){
+      try{
+        if(!wakeLock) return;
+        await wakeLock.release();
+      }catch(err){
+        console.warn('Wake lock release failed:', err);
+      }finally{
+        wakeLock = null;
+      }
+    }
+    function isMaximizedMode(){
+      return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || document.body.classList.contains('app-maximized'));
+    }
+    async function syncWakeLockForMaximize(){
+      if(isMaximizedMode() && document.visibilityState === 'visible') await requestWakeLock();
+      else await releaseWakeLock();
+    }
+
+    function setStatus(text, ok){
+      statusEl.textContent = text;
+      statusEl.className = 'status ' + (ok ? 'ok' : 'bad');
+    }
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+    function round(v, d=0){ const p = Math.pow(10,d); return Math.round((Number(v)||0)*p)/p; }
+    function polar(cx,cy,r,deg){ const rad = (deg-90)*Math.PI/180; return {x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad)}; }
+    function arcPath(cx, cy, r, start, end){ const s = polar(cx, cy, r, end); const e = polar(cx, cy, r, start); const large = (end-start)<=180 ? 0 : 1; return 'M '+s.x+' '+s.y+' A '+r+' '+r+' 0 '+large+' 0 '+e.x+' '+e.y; }
+    function svgEl(name, attrs){ const el = document.createElementNS('http://www.w3.org/2000/svg', name); for(const k in attrs) el.setAttribute(k, attrs[k]); return el; }
+    function normalizeGear(value){
+      const n = Number(value);
+      if (!Number.isNaN(n)) { if (n === 0) return 'N'; if (n < 0) return 'R'; return String(Math.round(n)); }
+      const s = String(value ?? '').trim().toUpperCase();
+      if (s === '0') return 'N'; if (s === '-1') return 'R'; return s || 'N';
+    }
+    function normalizeKey(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]/g,''); }
+    function isTruthy(v){
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'number') return v > 0;
+      const s = String(v ?? '').trim().toLowerCase();
+      return s === 'true' || s === 'on' || s === 'yes' || s === '1';
+    }
+    function pick(data, aliases, fallback){
+      for(const alias of aliases){
+        const key = normalizeKey(alias);
+        if (key in data) return data[key];
+      }
+      return fallback;
+    }
+    function setText(id, value){ const el = document.getElementById(id); if (el) el.textContent = value; }
+    function setBar(id, value, allowSigned){
+      const el = document.getElementById(id); if (!el) return;
+      const pct = allowSigned ? clamp((Number(value) + 100) / 2, 0, 100) : clamp(Number(value)||0,0,100);
+      if (id === 'barSteeringHorizontal') {
+        el.style.width = Math.abs(pct - 50) * 2 + '%';
+      } else {
+        el.style.height = pct + '%';
+      }
+    }
+    function setWarning(id, active){ const el = document.getElementById(id); if (el) el.classList.toggle('active', !!active); }
+    function formatTime(seconds){
+      const v = Number(seconds);
+      if (!Number.isFinite(v) || v < 0) return '--:--.---';
+      const mins = Math.floor(v / 60);
+      const secs = Math.floor(v % 60);
+      const ms = Math.floor((v - Math.floor(v)) * 1000);
+      return String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0') + '.' + String(ms).padStart(3,'0');
+    }
+    function formatNum(value, unit='', digits=0){
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '—';
+      return n.toFixed(digits) + (unit ? ' ' + unit : '');
+    }
+    function createGauge(containerId, opts){
+      const root = document.getElementById(containerId);
+      const size = root.classList.contains('large') ? 440 : 210;
+      const cx = size/2, cy = size/2, r = size*0.42;
+      const tickOuter = r*0.98;
+      const majorInner = r*0.78;
+      const minorInner = r*0.84;
+      const labelR = r*0.63;
+      const needleR = r*0.86;
+      const start = opts.startAngle || -130;
+      const end = opts.endAngle || 130;
+      const majorCount = opts.majorCount || 9;
+      const minorPerMajor = opts.minorPerMajor || 4;
+      const svg = svgEl('svg', {viewBox:'0 0 '+size+' '+size});
+      svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:r*1.03, fill:'none', stroke:'rgba(255,255,255,.05)', 'stroke-width': size*0.015}));
+      svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:r*0.97, fill:'none', stroke:'rgba(255,255,255,.035)', 'stroke-width': size*0.008}));
+      const progress = svgEl('path', { d: arcPath(cx, cy, r*0.91, start, start), fill:'none', stroke:'#ff3b30', 'stroke-width': size*0.022, 'stroke-linecap':'round', opacity:'0.9' });
+      svg.appendChild(progress);
+      const totalMinor = (majorCount-1)*minorPerMajor;
+      for(let i=0;i<=totalMinor;i++){
+        const t = i/totalMinor;
+        const angle = start + t*(end-start);
+        const p1 = polar(cx, cy, tickOuter, angle);
+        const isMajor = i % minorPerMajor === 0;
+        const p2 = polar(cx, cy, isMajor ? majorInner : minorInner, angle);
+        svg.appendChild(svgEl('line', { x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y, stroke:'rgba(255,255,255,'+(isMajor?0.9:0.42)+')', 'stroke-width': isMajor ? size*0.015 : size*0.007, 'stroke-linecap': (root.id && /^g[1-5]$/.test(root.id)) ? 'round' : 'butt' }));
+      }
+      for(let i=0;i<majorCount;i++){
+        const t = i/(majorCount-1); const angle = start + t*(end-start); const p = polar(cx, cy, labelR, angle); const val = opts.min + t*(opts.max-opts.min);
+        const txt = svgEl('text', { x:p.x, y:p.y+size*0.018, 'font-size': size*(opts.largeNumbers ? 0.05 : 0.06), 'font-family':'Arial, sans-serif', 'text-anchor':'middle', fill:'rgba(255,255,255,.92)' });
+        txt.textContent = opts.formatTick ? opts.formatTick(val, i) : Math.round(val); svg.appendChild(txt);
+      }
+      const title = svgEl('text', { x:cx, y:cy - size*0.14, 'font-size': size*0.06, 'font-family':'Arial, sans-serif', 'letter-spacing':'1.4', 'text-anchor':'middle', fill:'rgba(255,255,255,.78)' });
+      title.textContent = opts.title.toUpperCase(); svg.appendChild(title);
+      const unit = svgEl('text', { x:cx, y:cy + (root.classList.contains('large') ? size*0.07 : size*0.08), 'font-size': root.classList.contains('large') ? size*0.045 : size*0.05, 'font-family':'Arial, sans-serif', 'letter-spacing':'1.4', 'text-anchor':'middle', fill:'rgba(255,255,255,.55)' });
+      unit.textContent = root.classList.contains('large') ? 'km/h' : (opts.unit || ''); svg.appendChild(unit);
+      if(root.classList.contains('large')){
+        svg.appendChild(svgEl('rect', { x:cx-size*0.118, y:cy+size*0.258, width:size*0.236, height:size*0.104, rx:size*0.014, fill:'rgba(180,10,10,.12)', stroke:'rgba(255,255,255,.08)' }));
+        svg.appendChild(svgEl('rect', { x:cx-size*0.09, y:cy+size*0.098, width:size*0.18, height:size*0.136, rx:size*0.014, fill:'rgba(180,10,10,.12)', stroke:'rgba(255,255,255,.12)', 'stroke-width': size*0.003 }));
+        svg.appendChild(svgEl('rect', { x:cx-size*0.083, y:cy+size*0.105, width:size*0.166, height:size*0.122, rx:size*0.012, fill:'rgba(180,10,10,.06)' }));
+        const digital = svgEl('text', { x:cx, y:cy+size*0.31, 'font-size': size*0.055, 'font-family':'Arial, sans-serif', 'text-anchor':'middle', 'dominant-baseline':'middle', fill:'#ff5d57' });
+        digital.textContent = '0'; svg.appendChild(digital); root._digital = digital;
+        const gear = svgEl('text', { x:cx, y:cy+size*0.18, 'font-size': size*0.1352, 'font-family':'Arial, sans-serif', 'text-anchor':'middle', 'dominant-baseline':'middle', fill:'#ff5d57' });
+        gear.textContent = 'N'; svg.appendChild(gear); root._gear = gear;
+      }
+      const needle = svgEl('line', { x1:cx, y1:cy, x2:cx, y2:cy-needleR, stroke:'var(--needle)', 'stroke-width': root.classList.contains('large') ? size*0.012 : size*0.016, 'stroke-linecap':'round' });
+      svg.appendChild(needle);
+      svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:size*0.03, fill:'#111'}));
+      svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:size*0.018, fill:'#c9cbd1'}));
+      root.appendChild(svg);
+      return {
+        update(raw){
+          const gaugeMax = Number(root.dataset.max || opts.max);
+          const v = clamp(Number(raw)||0, opts.min, gaugeMax);
+          const pct = (v-opts.min)/(gaugeMax-opts.min);
+          const angle = start + pct*(end-start);
+          const endPt = polar(cx, cy, needleR, angle);
+          needle.setAttribute('x2', endPt.x); needle.setAttribute('y2', endPt.y); progress.setAttribute('d', arcPath(cx, cy, r*0.91, start, angle));
+          if(opts.zones){ let color = '#ff3b30'; for(let i=0;i<opts.zones.length;i++){ if(v <= opts.zones[i].max){ color = opts.zones[i].color; break; } } progress.setAttribute('stroke', color); }
+          if(root._digital && opts.updateDigital) root._digital.textContent = opts.updateDigital(v);
+        },
+        setDigital(text){ if(root._digital) root._digital.textContent = text; },
+        setGear(value){ if(root._gear) root._gear.textContent = normalizeGear(value); },
+        setMax(value){ const n = Number(value); if (Number.isFinite(n) && n > opts.min) root.dataset.max = String(n); }
+      };
+    }
+
+
+
+    const PAGE5_ICONS = {
+      fuel: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNSAxNSI+CiAgPHBhdGggZmlsbD0iIzhkZDlhZCIgZD0iTTEzLDZMMTMsNnY1LjVjMCwwLjI3NjEtMC4yMjM5LDAuNS0wLjUsMC41UzEyLDExLjc3NjEsMTIsMTEuNXYtMkMxMiw4LjY3MTYsMTEuMzI4NCw4LDEwLjUsOEg5VjJjMC0wLjU1MjMtMC40NDc3LTEtMS0xSDIgQzEuNDQ3NywxLDEsMS40NDc3LDEsMnYxMWMwLDAuNTUyMywwLjQ0NzcsMSwxLDFoNmMwLjU1MjMsMCwxLTAuNDQ3NywxLTFWOWgxLjVDMTAuNzc2MSw5LDExLDkuMjIzOSwxMSw5LjV2MiBjMCwwLjgyODQsMC42NzE2LDEuNSwxLjUsMS41czEuNS0wLjY3MTYsMS41LTEuNVY1YzAtMC41NTIzLTAuNDQ3Ny0xLTEtMWwwLDBWMi40OUMxMi45OTQ2LDIuMjE3OCwxMi43NzIzLDEuOTk5OSwxMi41LDIgYy0wLjI4MTYsMC4wMDQ3LTAuNTA2MiwwLjIzNjctMC41MDE1LDAuNTE4NEMxMS45OTg3LDIuNTI4OSwxMS45OTkyLDIuNTM5NSwxMiwyLjU1VjVDMTIsNS41NTIzLDEyLjQ0NzcsNiwxMyw2czEtMC40NDc3LDEtMSBzLTAuNDQ3Ny0xLTEtMSBNOCw2LjVDOCw2Ljc3NjEsNy43NzYxLDcsNy41LDdoLTVDMi4yMjM5LDcsMiw2Ljc3NjEsMiw2LjV2LTNDMiwzLjIyMzksMi4yMjM5LDMsMi41LDNoNUM3Ljc3NjEsMyw4LDMuMjIzOSw4LDMuNSBWNi41eiIvPgo8L3N2Zz4=",
+      coolant: "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIFVwbG9hZGVkIHRvOiBTVkcgUmVwbywgd3d3LnN2Z3JlcG8uY29tLCBHZW5lcmF0b3I6IFNWRyBSZXBvIE1peGVyIFRvb2xzIC0tPgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPgo8c3ZnIGZpbGw9IiM4ZGQ5YWQiIGhlaWdodD0iODAwcHgiIHdpZHRoPSI4MDBweCIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiAKCSB2aWV3Qm94PSIwIDAgMTkxLjg1MSAxOTEuODUxIiB4bWw6c3BhY2U9InByZXNlcnZlIj4KPGc+Cgk8cGF0aCBkPSJNMTg4LjEwMywxNDcuMzIyYy0zLjU4My0yLjA3Mi04LjE3My0wLjg0OS0xMC4yNDcsMi43MzljLTQuNzM0LDguMTg5LTEzLjU0LDEzLjI3NS0yMi45NzksMTMuMjc1CgkJYy05LjQ0MiwwLTE4LjI0OS01LjA4Ny0yMi45ODMtMTMuMjc1Yy0xLjM0MS0yLjMxOC0zLjgxNi0zLjc0Ni02LjQ5NC0zLjc0NmMtMi42NzgsMC01LjE1MywxLjQyOS02LjQ5MywzLjc0OAoJCWMtNC43Myw4LjE4OC0xMy41MzUsMTMuMjczLTIyLjk3NiwxMy4yNzNjLTkuNDM5LDAtMTguMjQ2LTUuMDg4LTIyLjk4NS0xMy4yNzdjLTEuMzQxLTIuMzE3LTMuODE4LTMuNzQ0LTYuNDk1LTMuNzQ0CgkJYy0yLjY3OCwwLTUuMTUyLDEuNDI4LTYuNDkzLDMuNzQ2Yy00LjczNSw4LjE4OS0xMy41NCwxMy4yNzUtMjIuOTgsMTMuMjc1Yy05LjQ0MiwwLTE4LjI0OS01LjA4Ny0yMi45ODQtMTMuMjc1CgkJYy0yLjA3My0zLjU4Ny02LjY2Mi00LjgwOS0xMC4yNDctMi43MzljLTMuNTg2LDIuMDc0LTQuODEyLDYuNjYxLTIuNzM4LDEwLjI0N2M3LjQwNywxMi44MDksMjEuMTg5LDIwLjc2OCwzNS45NjksMjAuNzY4CgkJYzExLjE2OCwwLDIxLjc2Ny00LjU0NSwyOS40NzYtMTIuMjk1YzcuNzExLDcuNzUsMTguMzEsMTIuMjk1LDI5LjQ3NywxMi4yOTVjMTEuMTY4LDAsMjEuNzY1LTQuNTQzLDI5LjQ3MS0xMi4yOTEKCQljNy43MDksNy43NDcsMTguMzA4LDEyLjI5MSwyOS40NzYsMTIuMjkxYzE0Ljc3NywwLDI4LjU1OS03Ljk1OCwzNS45NjYtMjAuNzY4QzE5Mi45MTYsMTUzLjk4MywxOTEuNjg5LDE0OS4zOTYsMTg4LjEwMywxNDcuMzIyeiIKCQkvPgoJPHBhdGggZD0iTTEzMS44OTMsMTE1LjM1Yy0yLjA3My0zLjU4OC02LjY2NC00LjgxMy0xMC4yNDctMi43MzljLTMuNTg2LDIuMDczLTQuODEzLDYuNjYxLTIuNzM5LDEwLjI0NwoJCWM3LjQwNiwxMi44MSwyMS4xOSwyMC43NjgsMzUuOTcsMjAuNzY4YzE0Ljc3OCwwLDI4LjU1OS03Ljk1OCwzNS45NjYtMjAuNzY4YzIuMDczLTMuNTg2LDAuODQ3LTguMTc0LTIuNzM5LTEwLjI0NwoJCWMtMy41ODYtMi4wNzMtOC4xNzQtMC44NDctMTAuMjQ3LDIuNzM5Yy00LjczNCw4LjE4OC0xMy41MzksMTMuMjc1LTIyLjk3OSwxMy4yNzVDMTQ1LjQzNCwxMjguNjI2LDEzNi42MjgsMTIzLjUzOSwxMzEuODkzLDExNS4zNQoJCXoiLz4KCTxwYXRoIGQ9Ik0zNi45NzksMTQzLjYyNmMxNC43NzcsMCwyOC41NTktNy45NTcsMzUuOTY3LTIwLjc2N2MyLjA3NC0zLjU4NiwwLjg0OC04LjE3NC0yLjczNy0xMC4yNDcKCQljLTMuNTg1LTIuMDcyLTguMTc0LTAuODQ5LTEwLjI0NywyLjczN2MtNC43MzYsOC4xODktMTMuNTQzLDEzLjI3Ni0yMi45ODIsMTMuMjc2Yy05LjQ0MiwwLTE4LjI0OS01LjA4Ny0yMi45ODQtMTMuMjc1CgkJYy0yLjA3NC0zLjU4Ny02LjY2MS00LjgxMy0xMC4yNDctMi43MzljLTMuNTg2LDIuMDczLTQuODEyLDYuNjYxLTIuNzM5LDEwLjI0N0M4LjQxNiwxMzUuNjY4LDIyLjE5OCwxNDMuNjI2LDM2Ljk3OSwxNDMuNjI2eiIvPgoJPHBhdGggZD0iTTk2LjA5OCwxNTUuMDIxYzEwLjk4OCwwLDE5Ljg5NC04LjkwNywxOS44OTQtMTkuODk2YzAtOC4zMzItNS4xMjctMTUuNDU4LTEyLjM5NS0xOC40MjF2LTE1LjU4aDI1LjQ3NQoJCWM0LjE0MywwLDcuNS0zLjM1Nyw3LjUtNy41YzAtNC4xNDMtMy4zNTctNy41LTcuNS03LjVoLTI1LjQ3NVY3My4zNTdoMjUuNDc1YzQuMTQzLDAsNy41LTMuMzU3LDcuNS03LjVjMC00LjE0My0zLjM1Ny03LjUtNy41LTcuNQoJCWgtMjUuNDc1VjQ1LjU4OGgyNS40NzVjNC4xNDMsMCw3LjUtMy4zNTcsNy41LTcuNXMtMy4zNTctNy41LTcuNS03LjVoLTI1LjQ3NXYtOS41NzRjMC00LjE0My0zLjM1Ny03LjUtNy40OTktNy41CgkJcy03LjUsMy4zNTctNy41LDcuNXY5NS42OWMtNy4yNjksMi45NjMtMTIuMzk2LDEwLjA4OS0xMi4zOTYsMTguNDIxQzc2LjIwMSwxNDYuMTE0LDg1LjExLDE1NS4wMjEsOTYuMDk4LDE1NS4wMjF6Ii8+CjwvZz4KPC9zdmc+",
+      battery: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+CiAgPHBhdGggZmlsbD0iIzhkZDlhZCIgZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNMjIsOGEyLDIsMCwwLDAtMi0ySDE4VjQuOEExLjM3LDEuMzcsMCwwLDAsMTgsNC4yN2EuNTguNTgsMCwwLDAtLjIyLS4yMiwxLjM3LDEuMzcsMCwwLDAtLjUzLDBIMTQuOGExLjM3LDEuMzcsMCwwLDAtLjUzLDAsLjU4LjU4LDAsMCwwLS4yMi4yMkExLjM3LDEuMzcsMCwwLDAsMTQsNC44VjZIMTBWNC44QTEuMzcsMS4zNywwLDAsMCwxMCw0LjI3YS41OC41OCwwLDAsMC0uMjItLjIyQTEuMzcsMS4zNywwLDAsMCw5LjIsNEg2LjhhMS4zNywxLjM3LDAsMCwwLS41MywwLC41OC41OCwwLDAsMC0uMjIuMjJBMS4zNywxLjM3LDAsMCwwLDYsNC44VjZINEEyLDIsMCwwLDAsMiw4VjE4YTIsMiwwLDAsMCwyLDJIMjBhMiwyLDAsMCwwLDItMlpNMTAuNSwxNEg5djEuNUg3VjE0SDUuNVYxMkg3VjEwLjVIOVYxMmgxLjVaTTE4LDE0SDE0VjEyaDRaIi8+CiAgPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSJub25lIi8+Cjwvc3ZnPg==",
+      oil: "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48IS0tIFVwbG9hZGVkIHRvOiBTVkcgUmVwbywgd3d3LnN2Z3JlcG8uY29tLCBHZW5lcmF0b3I6IFNWRyBSZXBvIE1peGVyIFRvb2xzIC0tPgo8c3ZnIGZpbGw9IiM4ZGQ5YWQiIHdpZHRoPSI4MDBweCIgaGVpZ2h0PSI4MDBweCIgdmlld0JveD0iMCAwIDMyIDMyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0gMTEgOSBMIDExIDExIEwgMTMgMTEgTCAxMyAxMyBMIDcuNTYyNSAxMyBMIDUuODQzNzUgMTAuNDM3NSBMIDUuNTMxMjUgMTAgTCAxIDEwIEwgMSAxNS42ODc1IEwgNiAxNy42ODc1IEwgNiAyNSBMIDIwLjUzMTI1IDI1IEwgMjAuODEyNSAyNC41NjI1IEwgMjkuNSAxMiBMIDMxIDEyIEwgMzEgMTAgTCAyNy42NTYyNSAxMCBMIDI3LjQwNjI1IDEwLjE4NzUgTCAyMSAxNSBMIDIxIDEzIEwgMTUgMTMgTCAxNSAxMSBMIDE3IDExIEwgMTcgOSBaIE0gMyAxMiBMIDQuNDM3NSAxMiBMIDYgMTQuMzQzNzUgTCA2IDE1LjUgTCAzIDE0LjMxMjUgWiBNIDI1Ljc4MTI1IDEzLjkzNzUgTCAxOS41IDIzIEwgOCAyMyBMIDggMTUgTCAxOSAxNSBMIDE5IDE5IEwgMjAuNTkzNzUgMTcuODEyNSBaIE0gMjkuNSAxNiBDIDI5LjUgMTYgMjggMTguNjcxODc1IDI4IDE5LjUgQyAyOCAyMC4zMjgxMjUgMjguNjcxODc1IDIxIDI5LjUgMjEgQyAzMC4zMjgxMjUgMjEgMzEgMjAuMzI4MTI1IDMxIDE5LjUgQyAzMSAxOC42NzE4NzUgMjkuNSAxNiAyOS41IDE2IFoiLz48L3N2Zz4="
+    };
+
+    function createRufGauge(containerId, opts){
+      const root = document.getElementById(containerId);
+      const size = root.classList.contains('center') ? 420 : (root.classList.contains('med') ? 350 : 230);
+      const cx = size/2, cy = size/2, r = size*0.42;
+      const start = opts.startAngle || -130, end = opts.endAngle || 130;
+      const majorCount = opts.majorCount || 9, minorPerMajor = opts.minorPerMajor || 4;
+      const labelR = r*0.66, tickOuter = r*0.98, majorInner = r*0.79, minorInner = r*0.86, needleR = r*0.9;
+      const mint = '#8dd9ad';
+      const svg = svgEl('svg', {viewBox:'0 0 '+size+' '+size});
+      const fullNeedle = containerId === 'r2' || containerId === 'r3';
+      const keepCenterCap = fullNeedle;
+
+      svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:r*1.03, fill:'none', stroke:'rgba(255,255,255,.04)', 'stroke-width': size*0.014}));
+      const totalMinor = (majorCount-1)*minorPerMajor;
+      for(let i=0;i<=totalMinor;i++){
+        const t = i/totalMinor, angle = start + t*(end-start);
+        const p1 = polar(cx, cy, tickOuter, angle);
+        const isMajor = i % minorPerMajor === 0;
+        const p2 = polar(cx, cy, isMajor ? majorInner : minorInner, angle);
+        svg.appendChild(svgEl('line', {
+          x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y,
+          stroke: isMajor ? mint : 'rgba(141,217,173,.88)',
+          'stroke-width': isMajor ? size*0.014 : size*0.0065,
+          'stroke-linecap':'butt'
+        }));
+      }
+      for(let i=0;i<majorCount;i++){
+        const t = i/(majorCount-1), angle = start + t*(end-start), p = polar(cx, cy, labelR, angle);
+        const val = opts.min + t*(opts.max-opts.min);
+        const txt = svgEl('text', {
+          x:p.x, y:p.y+size*0.018, 'font-size': size*(opts.largeNumbers ? 0.055 : 0.05),
+          'font-family':'Arial, sans-serif', 'font-style':'italic', 'font-weight':'bold', 'text-anchor':'middle', fill:mint
+        });
+        txt.textContent = opts.formatTick ? opts.formatTick(val, i) : Math.round(val);
+        svg.appendChild(txt);
+      }
+      if(opts.title){
+        const title = svgEl('text', { x:cx, y:cy - size*0.18, 'font-size': size*0.042, 'font-family':'Arial, sans-serif', 'font-style':'italic', 'font-weight':'bold', 'letter-spacing':'1.3', 'text-anchor':'middle', fill:'rgba(141,217,173,.85)' });
+        title.textContent = opts.title.toUpperCase(); svg.appendChild(title);
+      }
+      if(opts.unit){
+        const unit = svgEl('text', { x:cx, y:cy - size*0.06, 'font-size': size*0.035, 'font-family':'Arial, sans-serif', 'font-style':'italic', 'font-weight':'bold', 'letter-spacing':'1.1', 'text-anchor':'middle', fill:'rgba(141,217,173,.72)' });
+        unit.textContent = opts.unit; svg.appendChild(unit);
+      }
+      if(opts.iconHref){
+        const isOil = containerId === 'r5';
+        const isBattery = containerId === 'r1';
+        const icon = svgEl('image', {
+          href: opts.iconHref,
+          x: isOil ? (cx + r*0.25 - size*0.04) : isBattery ? (cx - r*0.25 - size*0.04) : (cx - size*0.055),
+          y: (isOil || isBattery) ? (cy - size*0.04) : (cy - size*0.27),
+          width: (isOil || isBattery) ? size*0.08 : size*0.11,
+          height: (isOil || isBattery) ? size*0.08 : size*0.11,
+          opacity: 0.9,
+          preserveAspectRatio: 'xMidYMid meet'
+        });
+        icon.setAttributeNS('http://www.w3.org/1999/xlink', 'href', opts.iconHref);
+        svg.appendChild(icon);
+      }
+      if(opts.redFrom !== undefined){
+        const redStart = start + ((opts.redFrom - opts.min)/(opts.max-opts.min))*(end-start);
+        svg.appendChild(svgEl('path', { d: arcPath(cx, cy, r*0.92, redStart, end), fill:'none', stroke:'#ff1f1f', 'stroke-width': size*0.018, 'stroke-linecap':'round'}));
+      }
+
+      const shadow = svgEl('line', {
+        x1:cx + size*0.006, y1: fullNeedle ? cy + size*0.006 : cy-needleR*0.5 + size*0.006,
+        x2:cx + size*0.006, y2:cy-needleR + size*0.006,
+        stroke:'rgba(0,0,0,.55)', 'stroke-width': size*0.016, 'stroke-linecap':'round'
+      });
+      const needle = svgEl('line', {
+        x1:cx, y1: fullNeedle ? cy : cy-needleR*0.5,
+        x2:cx, y2:cy-needleR,
+        stroke:'rgba(240,240,242,.92)', 'stroke-width': size*0.010, 'stroke-linecap':'round'
+      });
+      svg.appendChild(shadow);
+      svg.appendChild(needle);
+
+      const valueText = svgEl('text', { 
+        x:cx, 
+        y:cy + size*0.36, 
+        'font-size': size*0.048, 
+        'font-family':'Arial, sans-serif', 
+        'font-style':'italic',
+        'font-weight':'bold',
+        'text-anchor':'middle', 
+        fill:'#f5f5f7' 
+      });
+      valueText.textContent = '0'; svg.appendChild(valueText);
+
+      const gearText = svgEl('text', {
+        x:cx,
+        y:cy + size*0.24,
+        'font-size': size*0.17,
+        'font-family':'Arial, sans-serif',
+        'font-style':'italic',
+        'font-weight':'bold',
+        'text-anchor':'middle',
+        fill:'#f5f5f7'
+      });
+      gearText.textContent = '';
+      if (containerId === 'r3') svg.appendChild(gearText);
+
+      if (keepCenterCap) {
+        svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:size*0.032, fill:'#eee'}));
+      }
+
+      root.appendChild(svg);
+      return {
+        update(raw){
+          const gaugeMax = Number(root.dataset.max || opts.max);
+          const v = clamp(Number(raw)||0, opts.min, gaugeMax);
+          const pct = (v-opts.min)/(gaugeMax-opts.min);
+          const angle = start + pct*(end-start);
+          const innerPt = fullNeedle ? {x:cx,y:cy} : polar(cx, cy, needleR * 0.5, angle);
+          const endPt = polar(cx, cy, needleR, angle);
+          needle.setAttribute('x1', innerPt.x); needle.setAttribute('y1', innerPt.y);
+          needle.setAttribute('x2', endPt.x); needle.setAttribute('y2', endPt.y);
+
+          const shadowStart = fullNeedle ? {x:cx + size*0.006, y:cy + size*0.006} : {x:innerPt.x + size*0.006, y:innerPt.y + size*0.006};
+          shadow.setAttribute('x1', shadowStart.x); shadow.setAttribute('y1', shadowStart.y);
+          shadow.setAttribute('x2', endPt.x + size*0.006); shadow.setAttribute('y2', endPt.y + size*0.006);
+
+          valueText.textContent = opts.formatValue ? opts.formatValue(v) : String(Math.round(v));
+        },
+        setText(t){ valueText.textContent = t; },
+        setGear(g){ if (containerId === 'r3') gearText.textContent = normalizeGear(g); },
+        setMax(value){ const n = Number(value); if (Number.isFinite(n) && n > opts.min) root.dataset.max = String(n); }
+      };
+    }
+
+    function createDualRufGauge(containerId){
+      const root = document.getElementById(containerId);
+      const size = 350, cx = size/2, cy = size/2, r = size*0.42;
+      const mint = '#8dd9ad';
+      const svg = svgEl('svg', {viewBox:'0 0 '+size+' '+size});
+      svg.appendChild(svgEl('circle', {cx:cx, cy:cy, r:r*1.03, fill:'none', stroke:'rgba(255,255,255,.04)', 'stroke-width': size*0.014}));
+      function addArcScale(min,max,start,end,majorCount,formatTick,labelYOffset){
+        const tickOuter = r*0.98, majorInner = r*0.83, minorInner = r*0.89, labelR = r*0.67;
+        const minorPerMajor = 4, totalMinor = (majorCount-1)*minorPerMajor;
+        for(let i=0;i<=totalMinor;i++){
+          const t=i/totalMinor, angle=start+t*(end-start), p1=polar(cx,cy,tickOuter,angle), isMajor=i%minorPerMajor===0, p2=polar(cx,cy,isMajor?majorInner:minorInner,angle);
+          svg.appendChild(svgEl('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,stroke:mint,'stroke-width':isMajor?size*0.012:size*0.006,'stroke-linecap':'butt'}));
+        }
+        for(let i=0;i<majorCount;i++){
+          const t=i/(majorCount-1), angle=start+t*(end-start), p=polar(cx,cy,labelR,angle), val=min+t*(max-min);
+          const txt=svgEl('text',{x:p.x,y:p.y+labelYOffset,'font-size':size*0.05,'font-family':'Arial, sans-serif','font-style':'italic','font-weight':'bold','text-anchor':'middle',fill:mint});
+          txt.textContent = formatTick(val,i); svg.appendChild(txt);
+        }
+      }
+      addArcScale(0,150,-27,27,4,(v)=>Math.round(v), size*0.014); // coolant top printed scale
+      addArcScale(0,1,50,130,3,(v,i)=>['4/4','2/4','0'][i], size*0.014); // fuel lower inverted
+
+      const coolShadow = svgEl('line', {x1:cx+size*0.008,y1:cy-r*0.44+size*0.008,x2:cx+size*0.008,y2:cy-r*0.88+size*0.008,stroke:'rgba(0,0,0,.55)','stroke-width':size*0.014,'stroke-linecap':'round'});
+      const fuelShadow = svgEl('line', {x1:cx+size*0.008,y1:cy-r*0.35+size*0.008,x2:cx+size*0.008,y2:cy-r*0.7+size*0.008,stroke:'rgba(0,0,0,.55)','stroke-width':size*0.014,'stroke-linecap':'round'});
+      const coolNeedle = svgEl('line', {x1:cx,y1:cy-r*0.44,x2:cx,y2:cy-r*0.88,stroke:'#f5f5f7','stroke-width':size*0.009,'stroke-linecap':'round'});
+      const fuelNeedle = svgEl('line', {x1:cx,y1:cy-r*0.35,x2:cx,y2:cy-r*0.7,stroke:'#f5f5f7','stroke-width':size*0.009,'stroke-linecap':'round'});
+      svg.appendChild(coolShadow); svg.appendChild(fuelShadow); svg.appendChild(coolNeedle); svg.appendChild(fuelNeedle);
+
+      const coolantIcon = svgEl('image', {
+        href: PAGE5_ICONS.coolant,
+        x: cx - size*0.0308,
+        y: cy - r*0.25 - size*0.0308,
+        width: size*0.0616,
+        height: size*0.0616,
+        opacity: 0.9,
+        preserveAspectRatio: 'xMidYMid meet'
+      });
+      coolantIcon.setAttributeNS('http://www.w3.org/1999/xlink', 'href', PAGE5_ICONS.coolant);
+      svg.appendChild(coolantIcon);
+
+      const fuelIcon = svgEl('image', {
+        href: PAGE5_ICONS.fuel,
+        x: cx + r*0.25 - size*0.032,
+        y: cy + r*0.06 - size*0.032,
+        width: size*0.064,
+        height: size*0.064,
+        opacity: 0.9,
+        preserveAspectRatio: 'xMidYMid meet'
+      });
+      fuelIcon.setAttributeNS('http://www.w3.org/1999/xlink', 'href', PAGE5_ICONS.fuel);
+      svg.appendChild(fuelIcon);
+
+      const coolText = svgEl('text',{x:cx,y:cy+size*0.33,'font-size':size*0.05,'font-family':'Arial, sans-serif','font-style':'italic','font-weight':'bold','text-anchor':'middle',fill:'#f5f5f7'});
+      coolText.textContent = '0°C'; svg.appendChild(coolText);
+      const fuelText = svgEl('text',{x:cx,y:cy+size*0.39,'font-size':size*0.04,'font-family':'Arial, sans-serif','font-style':'italic','font-weight':'bold','text-anchor':'middle',fill:'#f5f5f7'});
+      fuelText.textContent = '0%'; svg.appendChild(fuelText);
+
+      root.appendChild(svg);
+      function setNeedle(el, value, min, max, start, end, radius){
+        const v = clamp(Number(value)||0, min, max);
+        const pct = (v-min)/(max-min);
+        const angle = start+pct*(end-start);
+        const innerPt = polar(cx, cy, radius * 0.5, angle);
+        const endPt = polar(cx, cy, radius, angle);
+        el.setAttribute('x1', innerPt.x); el.setAttribute('y1', innerPt.y);
+        el.setAttribute('x2', endPt.x); el.setAttribute('y2', endPt.y);
+        const shadow = el === coolNeedle ? coolShadow : (el === fuelNeedle ? fuelShadow : null);
+        if (shadow) {
+          shadow.setAttribute('x1', innerPt.x + size*0.008); shadow.setAttribute('y1', innerPt.y + size*0.008);
+          shadow.setAttribute('x2', endPt.x + size*0.008); shadow.setAttribute('y2', endPt.y + size*0.008);
+        }
+      }
+      return {
+        updateCoolant(v){ setNeedle(coolNeedle, v, 0, 150, -20, 20, r*0.88); coolText.textContent = `${Math.round(Number(v)||0)}°C`; },
+        updateFuel(v){ const pct = (Number(v)||0) > 1 ? Number(v) : (Number(v)||0)*100; setNeedle(fuelNeedle, pct, 100, 0, 50, 130, r*0.7); fuelText.textContent = `${Math.round(pct)}%`; }
+      };
+    }
+    const oilGauge = createGauge('g1', { title:'Oil', min:40, max:140, unit:'°C', majorCount:6, minorPerMajor:4, formatTick:v=>Math.round(v), zones:[{max:95,color:'#65d66e'},{max:120,color:'#ffcc32'},{max:140,color:'#ff453a'}] });
+    const fuelGauge = createGauge('g2', { title:'Fuel', min:0, max:100, unit:'%', majorCount:5, minorPerMajor:5, formatTick:(v,i)=>['0','1/4','1/2','3/4','1'][i] || '', zones:[{max:20,color:'#ff453a'},{max:45,color:'#ffcc32'},{max:100,color:'#65d66e'}] });
+    const speedGauge = createGauge('g3', { title:'Speed', min:0, max:360, unit:'km/h', majorCount:10, minorPerMajor:3, largeNumbers:true, formatTick:v=>Math.round(v/20)*20, updateDigital:v=>Math.round(v), zones:[{max:360,color:'#ff3b30'}] });
+    const rpmGauge = createGauge('g4', { title:'RPM', min:0, max:9000, unit:'x1000', majorCount:10, minorPerMajor:4, formatTick:v=>Math.round(v/1000), zones:[{max:5000,color:'#65d66e'},{max:7200,color:'#ffcc32'},{max:9000,color:'#ff453a'}] });
+    const coolantGauge = createGauge('g5', { title:'Coolant', min:50, max:130, unit:'°C', majorCount:5, minorPerMajor:5, formatTick:v=>Math.round(v), zones:[{max:95,color:'#65d66e'},{max:110,color:'#ffcc32'},{max:130,color:'#ff453a'}] });
+    const rufVoltGauge = createRufGauge('r1', { min:8, max:18, iconHref: PAGE5_ICONS.battery, startAngle:225, endAngle:315, majorCount:4, minorPerMajor:2, formatTick:v=>Math.round(v), formatValue:v=>v.toFixed(1) });
+    const rufSpeedGauge = createRufGauge('r2', { title:'Speed', min:0, max:320, unit:'km/h', startAngle:220, endAngle:380, majorCount:9, minorPerMajor:4, formatTick:v=>Math.round(v/40)*40, formatValue:v=>Math.round(v)+' km/h' });
+    const rufRpmGauge = createRufGauge('r3', { title:'RPM', min:0, max:8.5, unit:'x1000', majorCount:9, minorPerMajor:4, largeNumbers:true, formatTick:v=>Math.round(v), formatValue:v=>String(Math.round(v * 1000)).padStart(4,'0'), redFrom:7.5, valueDigital:true });
+    const rufCoolFuelGauge = createDualRufGauge('r4');
+    const rufOilGauge = createRufGauge('r5', { min:0, max:6, iconHref: PAGE5_ICONS.oil, startAngle:130, endAngle:50, majorCount:4, minorPerMajor:2, formatTick:v=>Math.round(v), formatValue:v=>v.toFixed(1) + ' bar' });
+
+    function makeDotSets(){
+      document.querySelectorAll('.pageDots').forEach((holder) => {
+        holder.innerHTML = '';
+        pages.forEach((_, i) => {
+          const dot = document.createElement('div');
+          dot.className = 'pageDot' + (i === pageIndex ? ' active' : '');
+          holder.appendChild(dot);
+        });
+      });
+    }
+    function updatePage(){
+      pageTrack.style.transform = `translateX(-${pageIndex*100}%)`;
+      document.querySelectorAll('.pageDots').forEach((holder) => {
+        Array.from(holder.children).forEach((dot, i) => dot.classList.toggle('active', i === pageIndex));
+      });
+      document.querySelectorAll('.pageName').forEach((el, idx) => {
+        el.textContent = `Page ${idx+1} · ${pageNames[idx]}`;
+      });
+      if (toolbarPageName) toolbarPageName.textContent = pageNames[pageIndex] || '—';
+      if (toolbarPageNumber) toolbarPageNumber.textContent = `${pageIndex + 1} / ${pages.length}`;
+      localStorage.setItem('dashboardPageIndex', String(pageIndex));
+    }
+    function goToPage(next){
+      pageIndex = (next + pages.length) % pages.length;
+      updatePage();
+      requestScale();
+    }
+    function nextPage(){ goToPage(pageIndex + 1); }
+    function prevPage(){ goToPage(pageIndex - 1); }
+
+    function toggleMaximize(){
+      const root = document.documentElement;
+      const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+      if (isFs) {
+        const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+        if (exitFn) {
+          Promise.resolve(exitFn.call(document)).finally(syncWakeLockForMaximize);
+        }
+        document.body.classList.remove('app-maximized');
+        syncWakeLockForMaximize();
+        return;
+      }
+      const reqFn = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+      if (reqFn) {
+        Promise.resolve(reqFn.call(root))
+          .catch(() => { document.body.classList.toggle('app-maximized'); })
+          .finally(syncWakeLockForMaximize);
+      } else {
+        document.body.classList.toggle('app-maximized');
+        syncWakeLockForMaximize();
+      }
+    }
+
+    function absorbIncoming(data){
+      Object.keys(data || {}).forEach((key) => { latestData[normalizeKey(key)] = data[key]; });
+    }
+
+    function buildTyreCards(){
+      const tires = [
+        {code:'fl', label:'Front left'}, {code:'fr', label:'Front right'}, {code:'rl', label:'Rear left'}, {code:'rr', label:'Rear right'}
+      ];
+      const grid = document.getElementById('tireGrid');
+      grid.innerHTML = '';
+      tires.forEach((t) => {
+        const card = document.createElement('div');
+        card.className = 'tireCard';
+        card.id = 'tire-' + t.code;
+        card.innerHTML = `
+          <div class="tireHead"><div class="tireName">${t.label}</div><div id="${t.code}-surface">—</div></div>
+          <div class="tempStrip">
+            <div class="tempCell"><div class="small">Inner</div><div class="value" id="${t.code}-inner">—</div></div>
+            <div class="tempCell"><div class="small">Middle</div><div class="value" id="${t.code}-middle">—</div></div>
+            <div class="tempCell"><div class="small">Outer</div><div class="value" id="${t.code}-outer">—</div></div>
+          </div>
+          <div class="smallStats">
+            <div class="smallStat"><div class="k">Brake</div><div class="v" id="${t.code}-brake">—</div></div>
+            <div class="smallStat"><div class="k">Pressure</div><div class="v" id="${t.code}-pressure">—</div></div>
+            <div class="smallStat"><div class="k">Wear</div><div class="v" id="${t.code}-wear">—</div></div>
+            <div class="smallStat"><div class="k">Load</div><div class="v" id="${t.code}-load">—</div></div>
+            <div class="smallStat"><div class="k">Slip</div><div class="v" id="${t.code}-slip">—</div></div>
+            <div class="smallStat"><div class="k">Camber</div><div class="v" id="${t.code}-camber">—</div></div>
+          </div>`;
+        grid.appendChild(card);
+      });
+    }
+
+    function updateCluster(){
+      const oil = pick(latestData,['oil_temperature','oil temperature','OIL_TEMPERATURE']);
+      const fuelPct = pick(latestData,['fuel_percent','fuel percent','FUEL_PERCENT']);
+      const speedRaw = pick(latestData,['speed','SPEED']);
+      const speed = speedRaw !== undefined ? (Number(speedRaw) || 0) * 3.6 : undefined;
+      const rpm = pick(latestData,['engine_rpm','ENGINE_RPM','rpm']);
+      const rpmMaxRaw = pick(latestData,['rpm_max','RPM_MAX']);
+      const coolant = pick(latestData,['coolant_temperature','COOLANT_TEMPERATURE']);
+      const gear = pick(latestData,['gear','GEAR']);
+      if(oil !== undefined) oilGauge.update(oil);
+      if(fuelPct !== undefined) fuelGauge.update(fuelPct > 1 ? fuelPct : Number(fuelPct)*100);
+      if(speed !== undefined){ speedGauge.update(speed); speedGauge.setDigital(Math.round(Number(speed)||0)); }
+      if(rpmMaxRaw !== undefined){
+        const rpmMax = Number(rpmMaxRaw) || 0;
+        if (rpmMax > 0) {
+          rpmGauge.setMax(rpmMax);
+          rufRpmGauge.setMax(rpmMax / 1000);
+        }
+      }
+      if(rpm !== undefined) rpmGauge.update(rpm);
+      if(coolant !== undefined) coolantGauge.update(coolant);
+      if(gear !== undefined) speedGauge.setGear(gear);
+
+      const volts = pick(latestData,['battery_voltage','BATTERY_VOLTAGE','system_voltage','voltage'], 13.8);
+      if(volts !== undefined) rufVoltGauge.update(volts);
+      if(speed !== undefined) rufSpeedGauge.update(speed);
+      if(rpm !== undefined) rufRpmGauge.update((Number(rpm)||0) / 1000);
+      if(gear !== undefined) rufRpmGauge.setGear(gear);
+      if(coolant !== undefined) rufCoolFuelGauge.updateCoolant(coolant);
+      if(fuelPct !== undefined) rufCoolFuelGauge.updateFuel(fuelPct);
+      const oilPressure = pick(latestData,['oil_pressure','OIL_PRESSURE'],0);
+      if(oilPressure !== undefined) rufOilGauge.update(oilPressure);
+    }
+
+    function updateLapsAndWarnings(){
+      setText('currentLap', pick(latestData,['lap','LAP'], '—'));
+      setText('currentSector', pick(latestData,['sector','SECTOR'], '—'));
+      setText('currentLapTime', formatTime(pick(latestData,['lap_time','LAP_TIME'])));
+      setText('currentSectorTime', formatTime(pick(latestData,['sector_time','SECTOR_TIME'])));
+      setText('bestLapTime', formatTime(pick(latestData,['best_lap_time','BEST_LAP_TIME'])));
+      setText('lastLapTime', formatTime(pick(latestData,['last_lap_time','LAST_LAP_TIME'])));
+      const distance = Number(pick(latestData,['TRACK_DISTANCE','track distance','current track distance','progress in the track'], 0)) || 0;
+      const length = Number(pick(latestData,['TRACK_TOTAL_DISTANCE','track total distance','track length'], 0)) || 0;
+      const progressValue = length > 0 ? clamp(distance/length*100, 0, 100) : clamp(Number(pick(latestData,['TRACK_DISTANCE','track distance','progress in the track'], 0))*100, 0, 100);
+      document.getElementById('trackProgressFill').style.width = progressValue + '%';
+      setText('trackProgressText', progressValue.toFixed(1) + '%');
+      setText('trackDistanceText', Math.round(distance) + ' / ' + Math.round(length) + ' m');
+      setText('currentTrackDistance', Math.round(distance) + ' m');
+      setText('trackLength', Math.round(length) + ' m');
+      setText('lapsInRace', pick(latestData,['laps in race'],'—'));
+      setText('timeOfDay', pick(latestData,['time of day'],'—'));
+      setWarning('warnTC', isTruthy(pick(latestData,['traction control'])));
+      setWarning('warnABS', isTruthy(pick(latestData,['abs'])));
+      setWarning('warnDRS', isTruthy(pick(latestData,['drs','drs allowed'])));
+      setWarning('warnPit', isTruthy(pick(latestData,['pit limiter'])));
+      setWarning('warnLights', isTruthy(pick(latestData,['lights','landing gear']))) ;
+      setWarning('warnHandbrake', isTruthy(pick(latestData,['handbrake'])));
+      setWarning('warnStall', isTruthy(pick(latestData,['stall'])));
+      setWarning('warnKers', isTruthy(pick(latestData,['kers/ers'])) || Number(pick(latestData,['kers/ers percent'],0)) > 0);
+      setWarning('warnBrake', Number(pick(latestData,['brake','BRAKE'],0)) > 0.7 || Number(pick(latestData,['front brake'],0)) > 0.7 || Number(pick(latestData,['rear brake'],0)) > 0.7);
+    }
+
+    function updateDynamics(){
+      const latG = (Number(pick(latestData,['lat_a','LAT_A','lateral gravity','cg sway'],0)) || 0) / 9.80665;
+      const longG = (Number(pick(latestData,['lon_a','LON_A','longitudinal gravity','cg surge'],0)) || 0) / 9.80665;
+      const totalG = Math.sqrt(latG*latG + longG*longG);
+      setText('gTotal', 'MAXIMUM: ' + totalG.toFixed(2) + ' g');
+      const gDot = document.getElementById('gDot');
+
+      const maxRange = 10;
+      const gExponent = Math.log(0.75) / Math.log(0.5);
+      const mapGToRadiusPct = (value) => {
+        const norm = clamp(Math.abs(Number(value) || 0) / maxRange, 0, 1);
+        return Math.pow(norm, gExponent);
+      };
+      const mapGSignedPct = (value) => {
+        const sign = Number(value) < 0 ? -1 : 1;
+        return mapGToRadiusPct(value) * sign;
+      };
+
+      window._gDisplayRange = maxRange;
+      const gGridSvg = document.getElementById('gGridSvg');
+      if (gGridSvg && !window._gGridRendered) {
+        gGridSvg.innerHTML = '';
+        const gRingValues = [1,3,5,7,9,11];
+        const baseLabelSize = 3.0;
+        gRingValues.forEach((gVal, idx) => {
+          const radius = mapGToRadiusPct(gVal) * 34;
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', '50');
+          circle.setAttribute('cy', '50');
+          circle.setAttribute('r', String(radius));
+          circle.setAttribute('fill', 'none');
+          circle.setAttribute('stroke', 'rgba(255,255,255,0.14)');
+          circle.setAttribute('stroke-width', '0.35');
+          gGridSvg.appendChild(circle);
+
+          const labelAngle = -45 * Math.PI / 180;
+          const labelRadius = radius + 1.8;
+          const labelX = 50 + Math.cos(labelAngle) * labelRadius;
+          const labelY = 50 + Math.sin(labelAngle) * labelRadius;
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          const labelSize = Math.max(0.9, baseLabelSize - idx * 0.45);
+          label.setAttribute('x', String(labelX));
+          label.setAttribute('y', String(labelY));
+          label.setAttribute('fill', 'rgba(255,255,255,0.58)');
+          label.setAttribute('font-size', String(labelSize));
+          label.setAttribute('font-family', 'Arial, sans-serif');
+          label.setAttribute('text-anchor', 'middle');
+          label.setAttribute('dominant-baseline', 'middle');
+          label.setAttribute('transform', `rotate(45 ${labelX} ${labelY})`);
+          label.textContent = `${gVal}G`;
+          gGridSvg.appendChild(label);
+        });
+        window._gGridRendered = true;
+      }
+      const x = mapGSignedPct(latG) * 34;
+      const y = mapGSignedPct(-longG) * 34;
+      if (gDot) {
+        gDot.style.left = `${50 + x}%`;
+        gDot.style.top = `${50 + y}%`;
+        gDot.style.transform = 'translate(-50%,-50%)';
+
+        const verARaw = Number(pick(latestData,['vert_a','VERT_A','ver_a','VER_A'],0)) || 0;
+        const verG = verARaw / 9.80665;
+        const sizeScale = Math.max(0.35, 1 + verG * 0.8);
+        const dotSize = 22 * sizeScale;
+        window._gCurrentDotSize = dotSize;
+        gDot.style.width = `${dotSize}px`;
+        gDot.style.height = `${dotSize}px`;
+      }
+
+      const trailSvg = document.getElementById('gTrailSvg');
+      if (!window._gTrailPoints) window._gTrailPoints = [];
+      const now = performance.now();
+      window._gTrailPoints.push({ latG, longG, ts: now });
+
+      if (!window._gTrailFadeLoopStarted) {
+        window._gTrailFadeLoopStarted = true;
+        const fadeTrail = () => {
+          const tNow = performance.now();
+          const life = 3000;
+          window._gTrailPoints = (window._gTrailPoints || []).filter((pt) => (tNow - pt.ts) < life);
+
+          if (trailSvg) {
+            trailSvg.innerHTML = '';
+            const pts = window._gTrailPoints.map((pt) => ({
+              x: 50 + mapGSignedPct(pt.latG || 0) * 34,
+              y: 50 + mapGSignedPct(-(pt.longG || 0)) * 34,
+              freshness: Math.max(0, 1 - (tNow - pt.ts) / life)
+            }));
+
+            if (pts.length >= 2) {
+              const maxTrailWidth = (window._gCurrentDotSize || 22) * (1/6);
+              for (let i = 0; i < pts.length - 1; i++) {
+                const p0 = pts[Math.max(0, i - 1)];
+                const p1 = pts[i];
+                const p2 = pts[i + 1];
+                const p3 = pts[Math.min(pts.length - 1, i + 2)];
+
+                const cp1x = p1.x + (p2.x - p0.x) / 6;
+                const cp1y = p1.y + (p2.y - p0.y) / 6;
+                const cp2x = p2.x - (p3.x - p1.x) / 6;
+                const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+                const segFreshness = Math.max(0, Math.min(p1.freshness, p2.freshness));
+                const width = maxTrailWidth * segFreshness;
+                if (width <= 0.05) continue;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', `M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', 'rgba(143,31,31,0.55)');
+                path.setAttribute('stroke-width', String(width));
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                trailSvg.appendChild(path);
+              }
+            }
+          }
+          requestAnimationFrame(fadeTrail);
+        };
+        requestAnimationFrame(fadeTrail);
+      }
+
+      window._peakLat = Math.max(window._peakLat || 0, Math.abs(latG));
+      window._peakLon = Math.max(window._peakLon || 0, Math.abs(longG));
+      const peakX = document.getElementById('gPeakX');
+      const peakY = document.getElementById('gPeakY');
+      const px = mapGToRadiusPct(window._peakLat) * 34;
+      const py = mapGToRadiusPct(window._peakLon) * 34;
+      if (peakX) peakX.style.transform = `translate(calc(-50% + ${px}%), -50%)`;
+      if (peakY) peakY.style.transform = `translate(-50%, calc(-50% + ${-py}%))`;
+
+      const throttleRaw = Number(pick(latestData,['throttle','THROTTLE'],0)) || 0;
+      const brakeRaw = Number(pick(latestData,['brake','BRAKE'],0)) || 0;
+      const clutchRaw = Number(pick(latestData,['clutch','CLUTCH'],0)) || 0;
+      const handbrakeRaw = Number(pick(latestData,['handbrake','HANDBRAKE'],0)) || 0;
+      const steeringRaw = Number(pick(latestData,['steering','STEERING','steering percent','STEERING_PERCENT','steering angle'],0)) || 0;
+
+      const throttlePct = clamp(throttleRaw <= 1 ? throttleRaw * 100 : throttleRaw, 0, 100);
+      const brakePct = clamp(brakeRaw <= 1 ? brakeRaw * 100 : brakeRaw, 0, 100);
+      const clutchPct = clamp(clutchRaw <= 1 ? clutchRaw * 100 : clutchRaw, 0, 100);
+      const handbrakePct = clamp(handbrakeRaw <= 1 ? handbrakeRaw * 100 : handbrakeRaw, 0, 100);
+      const steerPct = clamp(steeringRaw * 100, -100, 100);
+
+      setBar('barThrottle', throttlePct);
+      setBar('barBrake', brakePct);
+      setBar('barClutch', clutchPct);
+      setBar('barHandbrake', handbrakePct);
+
+      setText('valThrottle', round(throttlePct,0) + '%');
+      setText('valBrake', round(brakePct,0) + '%');
+      setText('valClutch', round(clutchPct,0) + '%');
+      setText('valHandbrake', round(handbrakePct,0) + '%');
+
+      const barLeft = document.getElementById('barSteeringLeft');
+      const barRight = document.getElementById('barSteeringRight');
+      if (barLeft && barRight) {
+        if (steerPct < 0) {
+          barLeft.style.width = Math.abs(steerPct) + '%';
+          barRight.style.width = '0%';
+        } else if (steerPct > 0) {
+          barRight.style.width = Math.abs(steerPct) + '%';
+          barLeft.style.width = '0%';
+        } else {
+          barLeft.style.width = '0%';
+          barRight.style.width = '0%';
+        }
+      }
+      setText('valSteeringPct', Math.round(steerPct) + '%');
+
+      const page3Gear = pick(latestData,['gear','GEAR']);
+      if (page3Gear !== undefined) setText('gearDisplay', normalizeGear(page3Gear));
+    }
+
+    function tyreKey(prefix, field){ return `${prefix} ${field}`; }
+    function updateTyresAndTemps(){
+      const map = { fl:'FL', fr:'FR', rl:'RL', rr:'RR' };
+      Object.entries(map).forEach(([code, prefix]) => {
+        setText(`${code}-surface`, '—');
+        setText(`${code}-inner`, formatNum(pick(latestData,[`${prefix}_I_TEMP`, `${prefix} I TEMP`]), '°C', 0));
+        setText(`${code}-middle`, formatNum(pick(latestData,[`${prefix}_M_TEMP`, `${prefix} M TEMP`]), '°C', 0));
+        setText(`${code}-outer`, formatNum(pick(latestData,[`${prefix}_O_TEMP`, `${prefix} O TEMP`]), '°C', 0));
+        setText(`${code}-brake`, formatNum(pick(latestData,[`${prefix}_BRAKE_TEMP`, `${prefix} BRAKE TEMP`]), '°C', 0));
+        setText(`${code}-pressure`, formatNum(pick(latestData,[`${prefix}_PRESSURE`, `${prefix} PRESSURE`]), '', 1));
+        setText(`${code}-wear`, '—');
+        setText(`${code}-load`, formatNum(pick(latestData,[`${prefix}_S`, `${prefix} S`]), '', 0));
+        setText(`${code}-slip`, formatNum(pick(latestData,[`${prefix}_A`, `${prefix} A`]), '', 2));
+        setText(`${code}-camber`, formatNum(pick(latestData,[`${prefix}_P`, `${prefix} P`]), '°', 2));
+      });
+
+      setText('airTemperature', formatNum(pick(latestData,['air_temp','AIR_TEMP']), '°C', 1));
+      setText('trackTemperature', formatNum(pick(latestData,['track_temp','TRACK_TEMP']), '°C', 1));
+      setText('oilPressure', formatNum(pick(latestData,['oil_pressure','OIL_PRESSURE']), 'bar', 1));
+      setText('fuelPressure', formatNum(pick(latestData,['fuel_pressure','FUEL_PRESSURE']), '', 1));
+
+      const frontBrake = [
+        Number(pick(latestData,['fl_brake_temp','FL_BRAKE_TEMP'], 0)) || 0,
+        Number(pick(latestData,['fr_brake_temp','FR_BRAKE_TEMP'], 0)) || 0
+      ];
+      const rearBrake = [
+        Number(pick(latestData,['rl_brake_temp','RL_BRAKE_TEMP'], 0)) || 0,
+        Number(pick(latestData,['rr_brake_temp','RR_BRAKE_TEMP'], 0)) || 0
+      ];
+      const frontAvg = frontBrake.some(v => v) ? Math.round((frontBrake[0] + frontBrake[1]) / 2) : '—';
+      const rearAvg = rearBrake.some(v => v) ? Math.round((rearBrake[0] + rearBrake[1]) / 2) : '—';
+      setText('frontRearBrake', `${frontAvg} / ${rearAvg}`);
+
+      const lat = formatNum(pick(latestData,['lat_a','LAT_A']), '', 2);
+      const lon = formatNum(pick(latestData,['lon_a','LON_A']), '', 2);
+      setText('windSummary', `${lat} / ${lon}`);
+    }
+
+
+
+    function hudColor(temp){
+      const t = Number(temp) || 0;
+      if (t >= 105) return '#ff453a';
+      if (t >= 90) return '#ffcc32';
+      if (t >= 60) return '#65d66e';
+      return '#4fb3ff';
+    }
+    function setHudBar(id, value){
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.background = hudColor(value);
+      el.style.opacity = '0.95';
+    }
+    function updateTyreHud(){
+      const map = { fl:'FL', fr:'FR', rl:'RL', rr:'RR' };
+      Object.entries(map).forEach(([code, prefix]) => {
+        const inner = Number(pick(latestData,[`${prefix}_I_TEMP`, `${prefix} I TEMP`], 0)) || 0;
+        const middle = Number(pick(latestData,[`${prefix}_M_TEMP`, `${prefix} M TEMP`], 0)) || 0;
+        const outer = Number(pick(latestData,[`${prefix}_O_TEMP`, `${prefix} O TEMP`], 0)) || 0;
+        const pressure = Number(pick(latestData,[`${prefix}_PRESSURE`, `${prefix} PRESSURE`], 0)) || 0;
+        const brake = Number(pick(latestData,[`${prefix}_BRAKE_TEMP`, `${prefix} BRAKE TEMP`], 0)) || 0;
+        const avg = (inner + middle + outer) / 3;
+        setText(`hud-${code}-temp`, `${Math.round(avg)}°C`);
+        setText(`hud-${code}-pressure`, `${pressure.toFixed(1)} bar`);
+        setText(`hud-${code}-compound`, avg > 0 ? (avg >= 95 ? 'Hot' : avg >= 75 ? 'Optimal' : 'Cold') : '—');
+        if (code === 'fr' || code === 'rr') {
+          setHudBar(`hud-${code}-i`, inner);
+          setHudBar(`hud-${code}-m`, middle);
+          setHudBar(`hud-${code}-o`, outer);
+        } else {
+          setHudBar(`hud-${code}-o`, outer);
+          setHudBar(`hud-${code}-m`, middle);
+          setHudBar(`hud-${code}-i`, inner);
+        }
+        const brakeEl = document.getElementById(`hud-brake-${code}`);
+        if (brakeEl) {
+          const pct = Math.max(0.12, Math.min(1, brake / 800));
+          brakeEl.style.height = Math.round(54 * pct) + 'px';
+          brakeEl.style.background = brake >= 650 ? '#ff453a' : brake >= 450 ? '#ffcc32' : '#8dd9ad';
+        }
+      });
+
+      const brakeTemps = ['FL','FR','RL','RR'].map(prefix => Number(pick(latestData,[`${prefix}_BRAKE_TEMP`, `${prefix} BRAKE TEMP`], 0)) || 0).filter(Boolean);
+      const brakeStatus = brakeTemps.length ? Math.round(brakeTemps.reduce((a,b)=>a+b,0)/brakeTemps.length) : 0;
+      setText('hud-brake-status', !brakeTemps.length ? 'Nominal' : brakeStatus >= 650 ? 'Critical' : brakeStatus >= 450 ? 'Warm' : 'Nominal');
+    }
+
+    function ensureSimpleBars(containerId, count, className){
+      const root = document.getElementById(containerId);
+      if (!root) return [];
+      if (root.children.length !== count){
+        root.innerHTML = '';
+        for(let i=0;i<count;i++){
+          const d = document.createElement('div');
+          d.className = className;
+          root.appendChild(d);
+        }
+      }
+      return Array.from(root.children);
+    }
+    function updateStackBars(containerId, pct){
+      const bars = ensureSimpleBars(containerId, containerId === 'zxFuelBars' ? 10 : 8, containerId === 'zxFuelBars' ? 'zxFuelBar' : 'zxGaugeBar');
+      const active = Math.round(clamp(pct,0,100)/100 * bars.length);
+      bars.forEach((bar, idx) => {
+        bar.style.opacity = idx >= bars.length - active ? '1' : '.14';
+      });
+    }
+
+
+    let updateQueued = false;
+    function updateAllPanels(){
+      updateCluster();
+      updateLapsAndWarnings();
+      updateDynamics();
+      updateTyresAndTemps();
+      updateTyreHud();
+      const gear = pick(latestData, ['gear','GEAR']);
+      if (gear !== undefined) {
+        setText('gearDisplay', normalizeGear(gear));
+      }
+    }
+    function queuePanelUpdate(){
+      if (updateQueued) return;
+      updateQueued = true;
+      requestAnimationFrame(() => {
+        updateQueued = false;
+        try {
+          updateAllPanels();
+    syncWakeLockForMaximize();
+        } catch(err) {
+          console.error('Dashboard update failed:', err);
+        }
+      });
+    }
+
+    function disconnect(){ if(es){ es.close(); es = null; } setStatus('Disconnected', false); }
+    function connect(){
+      disconnect();
+      const url = urlEl.value.trim();
+      if(!url){ setStatus('Invalid URL', false); return; }
+      try{
+        es = new EventSource(url);
+        es.onopen = function(){ setStatus('Connected', true); };
+        es.onmessage = function(event){
+          try{
+            const data = JSON.parse(event.data);
+            absorbIncoming(data);
+            queuePanelUpdate();
+            try { updateAllPanels(); } catch(err) { console.error('Immediate dashboard update failed:', err); }
+          } catch(err){ console.error('Invalid JSON:', event.data, err); }
+        };
+        es.onerror = function(){ setStatus('Disconnected / retrying...', false); };
+      }catch(err){ console.error(err); setStatus('Connection failed', false); }
+    }
+
+    document.getElementById('connectBtn').addEventListener('click', connect);
+    document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+    document.getElementById('nextZone').addEventListener('click', nextPage);
+    document.getElementById('prevZone').addEventListener('click', prevPage);
+
+    pageViewport.addEventListener('touchstart', (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+      const now = Date.now(); if (now - lastTapTs < 320) toggleMaximize(); lastTapTs = now;
+    }, {passive:true});
+    pageViewport.addEventListener('touchend', (e) => {
+      if (touchStartX == null) return;
+      const changed = e.changedTouches && e.changedTouches[0];
+      if (!changed) return;
+      const dx = changed.clientX - touchStartX; const dy = changed.clientY - touchStartY;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) { if (dx < 0) nextPage(); else prevPage(); }
+      touchStartX = null; touchStartY = null;
+    }, {passive:true});
+    pageViewport.addEventListener('dblclick', toggleMaximize);
+    document.addEventListener('fullscreenchange', () => { document.body.classList.toggle('app-maximized', !!document.fullscreenElement); requestScale(); syncWakeLockForMaximize(); });
+    document.addEventListener('webkitfullscreenchange', () => { document.body.classList.toggle('app-maximized', !!document.webkitFullscreenElement); requestScale(); syncWakeLockForMaximize(); });
+    document.addEventListener('visibilitychange', syncWakeLockForMaximize);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') nextPage();
+      if (e.key === 'ArrowLeft') prevPage();
+    });
+    if (window.ResizeObserver) {
+      const resizeObserver = new ResizeObserver(() => requestScale());
+      resizeObserver.observe(pageViewport);
+      resizeObserver.observe(document.getElementById('clusterShell'));
+    }
+
+    buildTyreCards();
+    makeDotSets();
+    wrapPagesForScaling();
+    updatePage();
+    requestScale();
+    absorbIncoming({ speed:86, 'engine rpm':2850, 'RPM_MAX':8500, 'fuel percent':58, 'oil temperature':92, 'coolant temperature':88, gear:3, 'current lap':5, 'current sector':2, 'current lap time':72.384, 'current sector time':21.102, 'best lap time':70.991, 'last lap time':71.845, 'TRACK_DISTANCE':3321, 'TRACK_TOTAL_DISTANCE':5420, 'laps in race':18, 'time of day':'15:42', 'traction control':1, abs:0, drs:1, 'pit limiter':0, handbrake:0, stall:0, 'kers/ers percent':24, brake:0.18, throttle:0.62, clutch:0, 'steering percent':-0.14, 'steering angle':-18.2, 'lateral gravity':0.81, 'longitudinal gravity':-0.42, 'yaw speed':14.1, 'pitch position':-0.6, 'roll position':1.8, 'turbo pressure':1.1, 'air temperature':24.8, 'track temperature':33.1, 'oil pressure':4.8, 'fuel pressure':3.1, 'front brake':61, 'rear brake':39, 'lateral wind speed':1.8, 'longitudinal wind speed':-0.6, 'front left inner temperature':84, 'front left middle temperature':87, 'front left outer temperature':82, 'front left brake temperature':452, 'front left pressure':26.1, 'front left wear':8, 'front left load':312, 'front left slip':0.11, 'front left camber':-2.2, 'front left surface':'Dry', 'front right inner temperature':83, 'front right middle temperature':88, 'front right outer temperature':84, 'front right brake temperature':446, 'front right pressure':26.0, 'front right wear':7, 'front right load':318, 'front right slip':0.10, 'front right camber':-2.1, 'front right surface':'Dry', 'rear left inner temperature':92, 'rear left middle temperature':96, 'rear left outer temperature':91, 'rear left brake temperature':398, 'rear left pressure':24.7, 'rear left wear':11, 'rear left load':340, 'rear left slip':0.16, 'rear left camber':-1.8, 'rear left surface':'Dry', 'rear right inner temperature':91, 'rear right middle temperature':95, 'rear right outer temperature':90, 'rear right brake temperature':401, 'rear right pressure':24.8, 'rear right wear':10, 'rear right load':337, 'rear right slip':0.15, 'rear right camber':-1.8, 'rear right surface':'Dry' });
+    updateAllPanels();
+  </script>
+</body>
+</html>
+
