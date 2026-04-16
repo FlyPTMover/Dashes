@@ -9,7 +9,7 @@ These examples demonstrate how telemetry data from Mover can be displayed in a b
 ## Example 1
 [Open](https://flyptmover.github.io/Dashes/Example1.html)
 
-![Cluster image](https://raw.githubusercontent.com/FlyPTMover/Dashes/main/Cluster1.png)
+![Cluster image](https://raw.githubusercontent.com/FlyPTMover/Dashes/main/Example1.jpg)
 
 **Example 1** is a dashboard designed for car games, featuring:
 
