@@ -693,33 +693,6 @@ const pages = Array.from(document.querySelectorAll('.page'));
     let touchStartX = null;
     let touchStartY = null;
     const latestData = {};
-    let wakeLock = null;
-    async function requestWakeLock(){
-      try{
-        if(!('wakeLock' in navigator) || wakeLock) return;
-        wakeLock = await navigator.wakeLock.request('screen');
-        wakeLock.addEventListener('release', () => { wakeLock = null; });
-      }catch(err){
-        console.warn('Wake lock failed:', err);
-      }
-    }
-    async function releaseWakeLock(){
-      try{
-        if(!wakeLock) return;
-        await wakeLock.release();
-      }catch(err){
-        console.warn('Wake lock release failed:', err);
-      }finally{
-        wakeLock = null;
-      }
-    }
-    function isMaximizedMode(){
-      return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || document.body.classList.contains('app-maximized'));
-    }
-    async function syncWakeLockForMaximize(){
-      if(isMaximizedMode() && document.visibilityState === 'visible') await requestWakeLock();
-      else await releaseWakeLock();
-    }
 
     function setStatus(text, ok){
       statusEl.textContent = text;
@@ -881,17 +854,17 @@ const pages = Array.from(document.querySelectorAll('.page'));
         const val = opts.min + t*(opts.max-opts.min);
         const txt = svgEl('text', {
           x:p.x, y:p.y+size*0.018, 'font-size': size*(opts.largeNumbers ? 0.055 : 0.05),
-          'font-family':'Arial, sans-serif', 'font-style':'italic', 'font-weight':'bold', 'text-anchor':'middle', fill:mint
+          'font-family':'Arial, sans-serif', 'text-anchor':'middle', fill:mint
         });
         txt.textContent = opts.formatTick ? opts.formatTick(val, i) : Math.round(val);
         svg.appendChild(txt);
       }
       if(opts.title){
-        const title = svgEl('text', { x:cx, y:cy - size*0.18, 'font-size': size*0.042, 'font-family':'Arial, sans-serif', 'font-style':'italic', 'font-weight':'bold', 'letter-spacing':'1.3', 'text-anchor':'middle', fill:'rgba(141,217,173,.85)' });
+        const title = svgEl('text', { x:cx, y:cy - size*0.18, 'font-size': size*0.042, 'font-family':'Arial, sans-serif', 'letter-spacing':'1.3', 'text-anchor':'middle', fill:'rgba(141,217,173,.85)' });
         title.textContent = opts.title.toUpperCase(); svg.appendChild(title);
       }
       if(opts.unit){
-        const unit = svgEl('text', { x:cx, y:cy - size*0.06, 'font-size': size*0.035, 'font-family':'Arial, sans-serif', 'font-style':'italic', 'font-weight':'bold', 'letter-spacing':'1.1', 'text-anchor':'middle', fill:'rgba(141,217,173,.72)' });
+        const unit = svgEl('text', { x:cx, y:cy - size*0.06, 'font-size': size*0.035, 'font-family':'Arial, sans-serif', 'letter-spacing':'1.1', 'text-anchor':'middle', fill:'rgba(141,217,173,.72)' });
         unit.textContent = opts.unit; svg.appendChild(unit);
       }
       if(opts.iconHref){
@@ -933,7 +906,7 @@ const pages = Array.from(document.querySelectorAll('.page'));
         'font-size': size*0.048, 
         'font-family':'Arial, sans-serif', 
         'font-style':'italic',
-        'font-weight':'bold',
+        
         'text-anchor':'middle', 
         fill:'#f5f5f7' 
       });
@@ -1103,21 +1076,15 @@ const pages = Array.from(document.querySelectorAll('.page'));
       const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
       if (isFs) {
         const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-        if (exitFn) {
-          Promise.resolve(exitFn.call(document)).finally(syncWakeLockForMaximize);
-        }
+        if (exitFn) exitFn.call(document);
         document.body.classList.remove('app-maximized');
-        syncWakeLockForMaximize();
         return;
       }
       const reqFn = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
       if (reqFn) {
-        Promise.resolve(reqFn.call(root))
-          .catch(() => { document.body.classList.toggle('app-maximized'); })
-          .finally(syncWakeLockForMaximize);
+        Promise.resolve(reqFn.call(root)).catch(() => { document.body.classList.toggle('app-maximized'); });
       } else {
         document.body.classList.toggle('app-maximized');
-        syncWakeLockForMaximize();
       }
     }
 
@@ -1518,7 +1485,6 @@ const pages = Array.from(document.querySelectorAll('.page'));
         updateQueued = false;
         try {
           updateAllPanels();
-    syncWakeLockForMaximize();
         } catch(err) {
           console.error('Dashboard update failed:', err);
         }
@@ -1564,9 +1530,8 @@ const pages = Array.from(document.querySelectorAll('.page'));
       touchStartX = null; touchStartY = null;
     }, {passive:true});
     pageViewport.addEventListener('dblclick', toggleMaximize);
-    document.addEventListener('fullscreenchange', () => { document.body.classList.toggle('app-maximized', !!document.fullscreenElement); requestScale(); syncWakeLockForMaximize(); });
-    document.addEventListener('webkitfullscreenchange', () => { document.body.classList.toggle('app-maximized', !!document.webkitFullscreenElement); requestScale(); syncWakeLockForMaximize(); });
-    document.addEventListener('visibilitychange', syncWakeLockForMaximize);
+    document.addEventListener('fullscreenchange', () => { document.body.classList.toggle('app-maximized', !!document.fullscreenElement); requestScale(); });
+    document.addEventListener('webkitfullscreenchange', () => { document.body.classList.toggle('app-maximized', !!document.webkitFullscreenElement); requestScale(); });
     window.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight') nextPage();
       if (e.key === 'ArrowLeft') prevPage();
