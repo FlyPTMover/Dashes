@@ -8,6 +8,8 @@ These examples demonstrate how telemetry data from Mover can be displayed in a b
 
 ## Example 1
 
+![Cluster image](https://raw.githubusercontent.com/FlyPTMover/Dashes/main/Cluster1.png)
+
 **Example 1** is a dashboard designed for car games, featuring:
 
 - Gauges
@@ -19,13 +21,6 @@ These examples demonstrate how telemetry data from Mover can be displayed in a b
 It is intended to work not only on the local PC, but also remotely from other computers, Android devices, and iOS devices through a browser.
 
 This example was created entirely with **ChatGPT**, without traditional hand-written coding, to show how quickly a functional and customizable dashboard can be built with AI assistance.
-
-## Important Limitation
-
-> The TCP stream supports **only one connected device at a time**.  
-> Multiple simultaneous connections to the same stream are **not supported**.
-
-Only one browser or device should be connected to the stream at any given time.
 
 ## Creating Your Own Dashboard
 
